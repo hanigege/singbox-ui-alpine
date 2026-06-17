@@ -1381,8 +1381,10 @@ async function changeRuntimeLogLevel() {
     if (result.state) state = result.state;
     stopRuntimeLogs(false);
     render();
-    startRuntimeLogs();
     setStatus(t("logLevelSaved"), "ok");
+    setTimeout(() => {
+      if (active === "runtime" && $("runtimeView").value === "logs" && !logStreamController) startRuntimeLogs();
+    }, 1200);
   } catch (error) {
     setStatus(error.message, "bad");
     $("runtimeLogLevel").value = runtime.logLevel === "warning" ? "warn" : runtime.logLevel || "warn";
