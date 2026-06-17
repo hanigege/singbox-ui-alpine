@@ -19,6 +19,7 @@
 - Telegram 官方 IP 捕获列表支持在线更新和手动校验编辑
 - LAN 侧 TCP/UDP 53 会被重定向到 sing-box DNS，降低 IPv4/IPv6 明文 DNS 泄漏
 - 安装器默认不改 `/etc/resolv.conf`，不把宿主机 DNS 指向本机，不启用 `radvd`
+- 安装器会在网关机自身写入温和的 TCP/UDP 性能 sysctl；如果内核支持 BBR，则启用 BBR
 - 规则更新由 Alpine `crond` 管理，运行状态自愈每 2 分钟检查一次
 - `sing-box-gateway-info` 一键查看 9091 访问地址和 Rule UI token
 
@@ -132,6 +133,19 @@ SING_BOX_GATEWAY_ENABLE_RADVD=1 /usr/local/sbin/refresh-sing-box-runtime-config
 ```
 
 生产网络里不建议在多台旁路机上同时启用 RA 广播。一般更稳的做法是：前端软路由继续作为默认网关，只把 FakeIP 网段或指定流量路由到 sing-box 机器。
+
+## 网关性能参数
+
+安装器会写入 `/etc/sysctl.d/98-sing-box-performance.conf` 并立即应用。旁路网关跑在 PVE、LXC 或 VM 里时，真正发起代理 TCP/UDP 出站连接的是网关机里的 `sing-box` 进程，只优化宿主机内核参数不一定会作用到容器或虚拟机内的出站连接。
+
+默认参数包括：
+
+- 内核支持 BBR 时启用 `net.ipv4.tcp_congestion_control = bbr`
+- 放大 `tcp_rmem` / `tcp_wmem` 自动调优上限
+- 提高 `udp_rmem_min`
+- 关闭 `tcp_slow_start_after_idle`
+
+如果当前内核不支持 BBR，安装器会自动保留系统默认拥塞控制，只应用其它缓冲参数，安装不会因此失败。
 
 ## 访问入口
 

@@ -13,6 +13,7 @@ RULE_UPDATE_CRON_MARKER_END="# END sing-box-gateway-ui rule update"
 MONITOR_CRON_MARKER_BEGIN="# BEGIN sing-box-gateway-ui runtime monitor"
 MONITOR_CRON_MARKER_END="# END sing-box-gateway-ui runtime monitor"
 APK_PACKAGES=(bash curl ca-certificates tar gzip python3 nftables iproute2 rsync util-linux coreutils openrc)
+PERFORMANCE_SYSCTL="/etc/sysctl.d/98-sing-box-performance.conf"
 PURGE=0
 ASSUME_YES=0
 
@@ -203,6 +204,7 @@ main() {
     /usr/local/sbin/update-sing-box-rules-jsdelivr \
     /usr/local/bin/sing-box-gateway-info \
     /usr/local/bin/sing-box-gateway-uninstall \
+    "$PERFORMANCE_SYSCTL" \
     /etc/sysctl.d/99-sing-box-tproxy.conf
 
   remove_generated_radvd_files
