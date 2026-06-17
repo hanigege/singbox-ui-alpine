@@ -367,14 +367,30 @@ enable_services() {
   rc-update add sing-box default >/dev/null 2>&1 || true
   rc-update add singbox-rule-ui default >/dev/null 2>&1 || true
   # OpenRC 没有 daemon-reload；覆盖安装后显式重启，确保新脚本和新二进制立即生效。
-  rc-service sing-box-tproxy restart
-  rc-service sing-box restart
-  rc-service singbox-rule-ui restart
+  restart_openrc_service sing-box-tproxy
+  restart_openrc_service sing-box
+  restart_openrc_service singbox-rule-ui
 }
 
 refresh_tproxy_after_start() {
   python3 "$PROJECT_DIR/scripts/sync_tproxy_setup.py" >/dev/null
-  rc-service sing-box-tproxy restart
+  restart_openrc_service sing-box-tproxy
+}
+
+restart_openrc_service() {
+  local service="$1"
+  if rc-service "$service" restart; then
+    return 0
+  fi
+  # 覆盖安装时旧进程可能刚退出，OpenRC pidfile/flock 会短暂返回失败；用 stop/start 收敛到最终状态。
+  rc-service "$service" stop >/dev/null 2>&1 || true
+  sleep 1
+  rc-service "$service" start || true
+  if rc-service "$service" status >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "Failed to start OpenRC service: $service" >&2
+  return 1
 }
 
 main() {
