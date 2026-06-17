@@ -1102,10 +1102,10 @@ def apply_fakeip_quic_policy(config, groups):
         ):
             insert_at = index
             break
-    # FakeIP 视频连接会被 sing-box 还原成域名，路由阶段不一定还能按 FakeIP CIDR 命中；这里只收窄到 YouTube/Google 视频域名。
-    rules.insert(insert_at, {"network": "udp", "port": 443, "domain_suffix": youtube_quic_domains, "outbound": "block"})
+    # FakeIP 视频连接会被 sing-box 还原成域名，路由阶段不一定还能按 FakeIP CIDR 命中；用 reject 表达预期拒绝，避免 block 出站把正常 QUIC 回落记录成 ERROR。
+    rules.insert(insert_at, {"network": "udp", "port": 443, "domain_suffix": youtube_quic_domains, "action": "reject"})
     # 同时保留 CIDR 保护，覆盖尚未还原域名的 FakeIP UDP/443；不能扩大到全部 UDP，否则会影响游戏和语音。
-    rules.insert(insert_at, {"network": "udp", "port": 443, "ip_cidr": [fakeip4, fakeip6], "outbound": "block"})
+    rules.insert(insert_at, {"network": "udp", "port": 443, "ip_cidr": [fakeip4, fakeip6], "action": "reject"})
 
 
 def apply_cache_file_settings(config):
