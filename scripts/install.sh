@@ -254,7 +254,15 @@ for command in (["ss", "-H", "-lunp", "sport = :53"], ["ss", "-H", "-ltnp", "spo
     for line in result.stdout.splitlines():
         owner_match = re.search(r'users:\(\("([^"]+)"', line)
         owner = owner_match.group(1) if owner_match else "unknown"
-        if owner == "sing-box":
+        pid_match = re.search(r"pid=(\d+)", line)
+        pid = pid_match.group(1) if pid_match else ""
+        cmdline = ""
+        if pid:
+            try:
+                cmdline = Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").decode("utf-8", "replace")
+            except OSError:
+                cmdline = ""
+        if owner == "sing-box" or "/usr/local/bin/sing-box" in cmdline or " sing-box run " in cmdline:
             continue
         parts = line.split()
         if len(parts) < 5:
@@ -274,7 +282,28 @@ PY
 }
 
 port53_owners() {
-  ss -H -ltnup 'sport = :53' 2>/dev/null | sed -n 's/.*users:((\"\([^\"]*\)\".*/\1/p' | sort -u | paste -sd, -
+  python3 - <<'PY'
+import re
+import subprocess
+from pathlib import Path
+
+owners = set()
+result = subprocess.run(["ss", "-H", "-ltnup", "sport = :53"], text=True, capture_output=True)
+for line in result.stdout.splitlines():
+    owner_match = re.search(r'users:\(\("([^"]+)"', line)
+    owner = owner_match.group(1) if owner_match else "unknown"
+    pid_match = re.search(r"pid=(\d+)", line)
+    pid = pid_match.group(1) if pid_match else ""
+    if pid:
+        try:
+            cmdline = Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").decode("utf-8", "replace")
+            if "/usr/local/bin/sing-box" in cmdline or " sing-box run " in cmdline:
+                owner = "sing-box"
+        except OSError:
+            pass
+    owners.add(owner)
+print(",".join(sorted(owners)))
+PY
 }
 
 ensure_dns_port_available() {
