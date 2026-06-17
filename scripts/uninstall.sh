@@ -14,7 +14,6 @@ RULE_UPDATE_CRON_MARKER_END="# END sing-box-gateway-ui rule update"
 MONITOR_CRON_MARKER_BEGIN="# BEGIN sing-box-gateway-ui runtime monitor"
 MONITOR_CRON_MARKER_END="# END sing-box-gateway-ui runtime monitor"
 APK_PACKAGES=(bash curl ca-certificates tar gzip python3 nftables iproute2 rsync util-linux coreutils openrc logrotate)
-PERFORMANCE_SYSCTL="/etc/sysctl.d/98-sing-box-performance.conf"
 PURGE=0
 ASSUME_YES=0
 
@@ -72,12 +71,6 @@ run_rc_update_del() {
   fi
 }
 
-run_rc_update_del_runlevel() {
-  if command -v rc-update >/dev/null 2>&1; then
-    rc-update del "$1" "$2" >/dev/null 2>&1 || true
-  fi
-}
-
 cleanup_tproxy_runtime() {
   if command -v nft >/dev/null 2>&1; then
     nft delete table inet singbox_tproxy >/dev/null 2>&1 || true
@@ -123,13 +116,6 @@ remove_generated_radvd_files() {
       rm -f "$path"
     fi
   done
-}
-
-restore_sysctl_state() {
-  # 只移除本安装器新增的 boot 绑定；如果 sysctl 原本已启用，卸载时必须保留系统自己的启动加载策略。
-  if [ "$(state_value sysctl_boot "$INSTALL_STATE_FILE")" = "absent" ]; then
-    run_rc_update_del_runlevel sysctl boot
-  fi
 }
 
 remove_sing_box_binary_if_owned() {
@@ -200,7 +186,6 @@ main() {
 
   cleanup_tproxy_runtime
   restore_radvd_state
-  restore_sysctl_state
 
   echo "Removing cron jobs, service files, and helper scripts..."
   remove_crontab_block "$RULE_UPDATE_CRON_MARKER_BEGIN" "$RULE_UPDATE_CRON_MARKER_END"
@@ -220,7 +205,6 @@ main() {
     /usr/local/bin/sing-box-gateway-info \
     /usr/local/bin/sing-box-gateway-uninstall \
     "$LOGROTATE_CONFIG" \
-    "$PERFORMANCE_SYSCTL" \
     /etc/sysctl.d/99-sing-box-tproxy.conf
 
   remove_generated_radvd_files

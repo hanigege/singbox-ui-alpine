@@ -18,7 +18,6 @@ RULE_UPDATE_CRON_MARKER_END="# END sing-box-gateway-ui rule update"
 MONITOR_CRON_MARKER_BEGIN="# BEGIN sing-box-gateway-ui runtime monitor"
 MONITOR_CRON_MARKER_END="# END sing-box-gateway-ui runtime monitor"
 APK_PACKAGES=(bash curl ca-certificates tar gzip python3 nftables iproute2 rsync util-linux coreutils openrc logrotate)
-PERFORMANCE_SYSCTL="/etc/sysctl.d/98-sing-box-performance.conf"
 
 need_root() {
   if [ "$(id -u)" -ne 0 ]; then
@@ -78,13 +77,6 @@ record_preinstall_state() {
     # Alpine 默认没有 systemd-resolved stub；这里仅记录 53 端口现场，卸载不擅自改 DNS。
     state_set port53_owners "$(port53_owners 2>/dev/null || true)"
   fi
-  if [ "$(state_get sysctl_boot)" = "" ]; then
-    if service_enabled_in_runlevel sysctl boot; then
-      state_set sysctl_boot preexisting
-    else
-      state_set sysctl_boot absent
-    fi
-  fi
 }
 
 install_packages() {
@@ -116,11 +108,6 @@ service_exists() {
 service_enabled() {
   local service="$1"
   rc-update show default 2>/dev/null | awk '{ print $1 }' | grep -qx "$service"
-}
-
-service_enabled_in_runlevel() {
-  local service="$1" runlevel="$2"
-  rc-update show "$runlevel" 2>/dev/null | awk '{ print $1 }' | grep -qx "$service"
 }
 
 disable_unrequested_radvd() {
@@ -389,33 +376,6 @@ install_tproxy_setup() {
   python3 "$PROJECT_DIR/scripts/sync_tproxy_setup.py"
 }
 
-install_performance_sysctl() {
-  local tmp available bbr_line
-  tmp="$(mktemp)"
-  available="$(sysctl -n net.ipv4.tcp_available_congestion_control 2>/dev/null || true)"
-  bbr_line="# net.ipv4.tcp_congestion_control = bbr"
-  if printf " %s " "$available" | grep -q " bbr "; then
-    bbr_line="net.ipv4.tcp_congestion_control = bbr"
-  fi
-  {
-    printf "%s\n" "# sing-box 网关性能参数。容器或 VM 内的 sing-box 才是真正发起代理 TCP/UDP 出站连接的一方，不能只依赖宿主机 BBR。"
-    printf "%s\n" "$bbr_line"
-    printf "%s\n" "net.ipv4.tcp_rmem = 4096 131072 67108864"
-    printf "%s\n" "net.ipv4.tcp_wmem = 4096 65536 67108864"
-    printf "%s\n" "net.ipv4.udp_rmem_min = 16384"
-    printf "%s\n" "net.ipv4.tcp_slow_start_after_idle = 0"
-  } > "$tmp"
-  install -m 0644 "$tmp" "$PERFORMANCE_SYSCTL"
-  rm -f "$tmp"
-  # 老内核或精简内核可能没有 BBR；这种情况下保留其它缓冲参数，安装不能因为拥塞控制不可用而失败。
-  if ! sysctl -p "$PERFORMANCE_SYSCTL"; then
-    sed -i '/^net\.ipv4\.tcp_congestion_control = bbr$/s/^/# /' "$PERFORMANCE_SYSCTL"
-    sysctl -p "$PERFORMANCE_SYSCTL"
-  fi
-  # 性能参数属于内核运行态，重启后交给 OpenRC sysctl 在 boot 阶段统一加载；不放进运行态监控里反复纠偏。
-  rc-update add sysctl boot >/dev/null 2>&1 || true
-}
-
 update_crontab_block() {
   local begin="$1" end="$2" body="$3" tmp
   tmp="$(mktemp)"
@@ -504,7 +464,6 @@ main() {
   install_initial_rules
   disable_unrequested_radvd
   install_tproxy_setup
-  install_performance_sysctl
   ensure_dns_port_available
   /usr/local/bin/sing-box check -c /etc/sing-box/config.json
   install_cron_jobs

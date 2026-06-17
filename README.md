@@ -19,7 +19,7 @@
 - Telegram 官方 IP 捕获列表支持在线更新和手动校验编辑
 - LAN 侧 TCP/UDP 53 会被重定向到 sing-box DNS，降低 IPv4/IPv6 明文 DNS 泄漏
 - 安装器默认不改 `/etc/resolv.conf`，不把宿主机 DNS 指向本机，不启用 `radvd`
-- 安装器会在网关机自身写入温和的 TCP/UDP 性能 sysctl；如果内核支持 BBR，则启用 BBR
+- 安装器默认不调整 TCP/UDP 性能 sysctl，内核调参由管理员按实际链路手动决定
 - 规则更新由 Alpine `crond` 管理，运行状态自愈每 2 分钟检查一次
 - `sing-box-gateway-info` 一键查看 9091 访问地址和 Rule UI token
 
@@ -138,16 +138,9 @@ SING_BOX_GATEWAY_ENABLE_RADVD=1 /usr/local/sbin/refresh-sing-box-runtime-config
 
 ## 网关性能参数
 
-安装器会写入 `/etc/sysctl.d/98-sing-box-performance.conf` 并立即应用。旁路网关跑在 PVE、LXC 或 VM 里时，真正发起代理 TCP/UDP 出站连接的是网关机里的 `sing-box` 进程，只优化宿主机内核参数不一定会作用到容器或虚拟机内的出站连接。
+安装器默认不写入 TCP/UDP 性能 sysctl，也不会启用 BBR 或修改缓冲参数。不同 VPS、LXC、PVE 和家庭宽带链路对内核参数的反应差异很大，自动捆绑调参可能让部分环境变慢。
 
-默认参数包括：
-
-- 内核支持 BBR 时启用 `net.ipv4.tcp_congestion_control = bbr`
-- 放大 `tcp_rmem` / `tcp_wmem` 自动调优上限
-- 提高 `udp_rmem_min`
-- 关闭 `tcp_slow_start_after_idle`
-
-如果当前内核不支持 BBR，安装器会自动保留系统默认拥塞控制，只应用其它缓冲参数，安装不会因此失败。
+如果确实需要调整 `tcp_congestion_control`、`tcp_rmem`、`tcp_wmem`、`udp_rmem_min` 或 `tcp_slow_start_after_idle`，建议先手动测试当前节点和链路，再自行写入 `/etc/sysctl.d/*.conf`。仓库的安装、覆盖安装和运行态自愈不会改动这些参数。
 
 ## 访问入口
 
