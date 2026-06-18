@@ -2897,6 +2897,19 @@ def current_proxy_payload(test_delays=False):
     return {"proxy": get_proxy_state(), "delays": get_node_delays(test=test_delays)}
 
 
+def current_proxy_payload_with_history_alignment():
+    delays = get_node_delays(test=False)
+    delay_values = delays.get("delays", {}) if isinstance(delays, dict) else {}
+    auto_align = align_auto_now_with_measured_delays(delay_values) if delay_values else {"changed": False, "target": None}
+    if isinstance(delays, dict):
+        # 页面加载和二次状态刷新不会重新测速，但仍要用最近 history 做一次容差校准，避免 UI 长时间显示旧 Auto.now。
+        delays["autoAlign"] = auto_align
+        if auto_align.get("switch") and not auto_align["switch"].get("ok") and not delays.get("error"):
+            delays["available"] = False
+            delays["error"] = auto_align["switch"].get("error") or "Auto switch failed"
+    return {"proxy": get_proxy_state(), "delays": delays}
+
+
 def current_proxy_payload_after_probe(test_delays=False):
     delays = get_node_delays(test=test_delays)
     # 主动测速可能刚刚改变 urltest 的 Auto.now；返回给 UI 前必须重新读取运行态，避免显示旧选择。
@@ -3337,7 +3350,7 @@ class Handler(BaseHTTPRequestHandler):
             if not self.authorized():
                 self.send_error_json("Unauthorized", 401)
                 return
-            self.send_json({"proxy": get_proxy_state(), "delays": get_node_delays(test=False)})
+            self.send_json(current_proxy_payload_with_history_alignment())
             return
         if parsed.path == "/api/maintenance":
             if not self.authorized():
