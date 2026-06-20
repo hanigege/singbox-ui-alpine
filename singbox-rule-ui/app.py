@@ -2876,10 +2876,8 @@ def align_auto_now_with_measured_delays(measured_delays):
             "reason": decision["reason"],
             "threshold": decision.get("threshold"),
         }
-    # 单次刷新里 UI 展示的是本轮逐节点测速结果；如果 Auto 比本轮最低延迟慢过用户容差，就主动校准运行态。
-    switched = set_auto_now_checked(best["tag"])
     return {
-        "changed": switched.get("ok", False),
+        "changed": False,
         "target": decision["target"],
         "best": best["tag"],
         "bestDelay": best["delay"],
@@ -2888,7 +2886,7 @@ def align_auto_now_with_measured_delays(measured_delays):
         "tolerance": tolerance,
         "reason": decision["reason"],
         "threshold": decision.get("threshold"),
-        "switch": switched,
+        "wouldSwitch": True,
     }
 
 
@@ -2906,13 +2904,11 @@ def refresh_proxy_delays():
         values[tag] = item
         if not item["ok"] and not api_error:
             api_error = item.get("error")
-    # 逐节点 delay 会刷新各出站 history；这里再测 Auto，让 urltest 用同一轮最新结果重新选择 now。
+    # 逐节点 delay 会刷新各出站 history；这里再测 Auto，让 URLTest 用同一轮最新结果自行选择 now。
     auto_reprobe = test_node_delay("Auto", timeout_ms=8000) if tags else None
     if auto_reprobe and not auto_reprobe["ok"] and not api_error:
         api_error = auto_reprobe.get("error")
     auto_align = align_auto_now_with_measured_delays(values) if tags else {"changed": False, "target": None}
-    if auto_align.get("switch") and not auto_align["switch"].get("ok") and not api_error:
-        api_error = auto_align["switch"].get("error") or "Auto switch failed"
     return {
         "available": api_error is None,
         "error": api_error,
@@ -2931,32 +2927,19 @@ def current_proxy_payload_with_history_alignment():
     delays = get_node_delays(test=False)
     delay_values = delays.get("delays", {}) if isinstance(delays, dict) else {}
     if delay_values:
-        state = get_proxy_state()
-        auto_now = state.get("data", {}).get("autoNow") if state.get("ok") else None
         good = [item for item in delay_values.values() if isinstance(item, dict) and item.get("ok") and isinstance(item.get("delay"), int)]
         if good:
-            best = min(good, key=lambda item: item["delay"])
-            current_delay = auto_selected_delay(auto_now, delay_values)
-            tolerance = normalize_non_negative_number(load_groups().get("auto", {}).get("tolerance", 50), 50)
-            decision = auto_alignment_decision(auto_now, current_delay, best["tag"], best["delay"], tolerance)
-            auto_align = {
-                "changed": False,
-                "target": decision["target"],
-                "best": best["tag"],
-                "bestDelay": best["delay"],
-                "current": auto_now,
-                "currentDelay": current_delay,
-                "tolerance": tolerance,
-                "reason": decision["reason"],
-                "threshold": decision.get("threshold"),
-                "wouldSwitch": decision["shouldSwitch"],
-            }
+            auto_align = align_auto_now_with_measured_delays(delay_values)
+            if auto_align.get("wouldSwitch"):
+                # URLTest 不是 Selector，Clash API 不能直接 PUT 子节点；发现历史延迟已超过容差时，
+                # 触发一次 URLTest 自身测速，让 sing-box 按自己的规则刷新 Auto.now，再把真实运行态返回给 UI。
+                delays = refresh_proxy_delays()
+                return {"proxy": get_proxy_state(), "delays": delays}
         else:
             auto_align = {"changed": False, "target": None, "reason": "no measured delays"}
     else:
         auto_align = {"changed": False, "target": None}
     if isinstance(delays, dict):
-        # 普通状态刷新只提供诊断，不改变 Auto.now；真正切换只发生在主动测速或保存后的恢复流程。
         delays["autoAlign"] = auto_align
     return {"proxy": get_proxy_state(), "delays": delays}
 
