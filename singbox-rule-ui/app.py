@@ -82,6 +82,7 @@ LOCAL_DNS_CHOICES = {
 }
 DEFAULT_LOCAL_DNS_CHOICE = "dnspod"
 LOCAL_DNS_BY_SERVER = {item["server"]: key for key, item in LOCAL_DNS_CHOICES.items()}
+DEFAULT_INTERRUPT_EXIST_CONNECTIONS = False
 ENTRY_TYPES = ("domain", "domain_suffix", "domain_keyword", "domain_regex", "ip_cidr")
 LIST_ENTRY_TYPES = {
     "whitelist": ENTRY_TYPES,
@@ -696,13 +697,13 @@ def extract_initial_manager_data(config):
     groups = {
         "proxy": {
             "default": (proxy or {}).get("default", "Auto"),
-            "interrupt_exist_connections": (proxy or {}).get("interrupt_exist_connections", True),
+            "interrupt_exist_connections": (proxy or {}).get("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS),
         },
         "auto": {
             "url": (auto or {}).get("url", "https://www.gstatic.com/generate_204"),
             "interval": (auto or {}).get("interval", "30s"),
             "tolerance": (auto or {}).get("tolerance", 50),
-            "interrupt_exist_connections": (auto or {}).get("interrupt_exist_connections", True),
+            "interrupt_exist_connections": (auto or {}).get("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS),
         },
         "direct": direct or {"type": "direct", "tag": "direct"},
         "block": block or {"type": "block", "tag": "block"},
@@ -753,13 +754,15 @@ def load_groups():
     groups.setdefault("ddns", {})
     groups.setdefault("telegram", {})
     groups["proxy"].setdefault("default", "Auto")
-    groups["proxy"].setdefault("interrupt_exist_connections", True)
-    groups["proxy"]["interrupt_exist_connections"] = normalize_bool(groups["proxy"]["interrupt_exist_connections"])
+    groups["proxy"].setdefault("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS)
+    # 游戏/语音这类长 UDP 连接不能被节点测速或手动切换直接杀掉；旧连接自然超时，新连接走新节点。
+    groups["proxy"]["interrupt_exist_connections"] = DEFAULT_INTERRUPT_EXIST_CONNECTIONS
     groups["auto"].setdefault("url", "https://www.gstatic.com/generate_204")
     groups["auto"].setdefault("interval", "30s")
     groups["auto"].setdefault("tolerance", 50)
-    groups["auto"].setdefault("interrupt_exist_connections", True)
-    groups["auto"]["interrupt_exist_connections"] = normalize_bool(groups["auto"]["interrupt_exist_connections"])
+    groups["auto"].setdefault("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS)
+    # urltest 延迟抖动时频繁切换 HY2/VLESS，如果中断既有连接会导致 LoL 这类游戏反复掉线重连。
+    groups["auto"]["interrupt_exist_connections"] = DEFAULT_INTERRUPT_EXIST_CONNECTIONS
     groups["fakeip"].setdefault("tag", "fakeip-dns")
     groups["fakeip"].setdefault("inet4_range", "28.0.0.0/8")
     groups["fakeip"].setdefault("inet6_range", "2001:2::/64")
@@ -823,7 +826,7 @@ def render_config(nodes=None, groups=None, rule_dir=RULE_DIR, normalized_lists=N
         "tag": "Proxy",
         "outbounds": ["Auto", *tags],
         "default": proxy_default,
-        "interrupt_exist_connections": normalize_bool(groups.get("proxy", {}).get("interrupt_exist_connections", True)),
+        "interrupt_exist_connections": DEFAULT_INTERRUPT_EXIST_CONNECTIONS,
     }
     auto = {
         "type": "urltest",
@@ -832,8 +835,8 @@ def render_config(nodes=None, groups=None, rule_dir=RULE_DIR, normalized_lists=N
         "url": groups.get("auto", {}).get("url", "https://www.gstatic.com/generate_204"),
         "interval": groups.get("auto", {}).get("interval", "30s"),
         "tolerance": groups.get("auto", {}).get("tolerance", 50),
-        # Auto 切换节点时必须断开已有入站连接，否则旧连接会继续粘在失效节点上。
-        "interrupt_exist_connections": normalize_bool(groups.get("auto", {}).get("interrupt_exist_connections", True)),
+        # Auto 只影响新连接，避免 urltest 周期测速时打断游戏/语音长连接。
+        "interrupt_exist_connections": DEFAULT_INTERRUPT_EXIST_CONNECTIONS,
     }
     direct = groups.get("direct") or {"type": "direct", "tag": "direct"}
     block = groups.get("block") or {"type": "block", "tag": "block"}
@@ -1093,7 +1096,7 @@ def apply_fakeip_quic_policy(config, groups):
             isinstance(rule, dict)
             and rule.get("network") == "udp"
             and rule.get("port") == 443
-            and rule.get("outbound") == "block"
+            and rule.get("outbound") in ("block", None)
             and (
                 (
                     isinstance(rule.get("ip_cidr"), list)
@@ -1109,6 +1112,7 @@ def apply_fakeip_quic_policy(config, groups):
                     and any(str(item) in youtube_quic_domains for item in rule.get("domain_suffix", []))
                 )
             )
+            and (rule.get("outbound") == "block" or rule.get("action") == "reject")
         )
     ]
     insert_at = 0
@@ -3014,9 +3018,8 @@ def normalize_payload_groups(raw_groups, nodes=None):
             groups["proxy"]["default"] = str(proxy.get("default", groups["proxy"]["default"]))
             if groups["proxy"]["default"] not in {"Auto", *tags}:
                 raise ValueError(f"Unknown proxy default: {groups['proxy']['default']}")
-            groups["proxy"]["interrupt_exist_connections"] = normalize_bool(
-                proxy.get("interrupt_exist_connections", groups["proxy"]["interrupt_exist_connections"])
-            )
+            # 保存入口也不接受旧 UI/导入数据打开中断长连接，避免下一次渲染恢复游戏掉线风险。
+            groups["proxy"]["interrupt_exist_connections"] = DEFAULT_INTERRUPT_EXIST_CONNECTIONS
         auto = raw_groups.get("auto")
         if isinstance(auto, dict):
             groups["auto"]["url"] = normalize_url(auto.get("url", groups["auto"]["url"]), groups["auto"]["url"])
@@ -3027,9 +3030,8 @@ def normalize_payload_groups(raw_groups, nodes=None):
                 groups["auto"]["preferred"] = preferred
             else:
                 groups["auto"].pop("preferred", None)
-            groups["auto"]["interrupt_exist_connections"] = normalize_bool(
-                auto.get("interrupt_exist_connections", groups["auto"].get("interrupt_exist_connections", True))
-            )
+            # Auto 切换只影响新连接；现有游戏 UDP 连接让内核和 sing-box 自然收敛。
+            groups["auto"]["interrupt_exist_connections"] = DEFAULT_INTERRUPT_EXIST_CONNECTIONS
         fakeip = raw_groups.get("fakeip")
         if isinstance(fakeip, dict):
             groups["fakeip"]["inet4_range"] = normalize_cidr(
