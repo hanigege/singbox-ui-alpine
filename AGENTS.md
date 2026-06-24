@@ -87,3 +87,16 @@ sh -n \
 5. 禁止为了快速通过测试而移除回滚、校验、服务状态检查。
 6. 禁止改动不相关文件或重排大段代码制造不可追踪 diff。
 
+
+---
+
+## 三个 GitHub 仓库区分
+
+| 仓库 | 本地路径 | 说明 |
+|------|---------|------|
+| `hanigege/sing-box1.13.13-alpine-ui` | `/Users/mana/Documents/codex/sb-alpine` | 当前工作仓库（sb-alpine）。Alpine OpenRC 环境，sing-box 1.13.13 网关 + Rule UI。生产部署在 10.20.20.6。 |
+| `hanigege/sing-box1.14x-gateway-ui` | `/Users/mana/Documents/codex/sing-box1.14x-gateway-ui` | sing-box 1.14.x 网关 + Rule UI。代码结构和 alpine-ui 基本一致。 |
+| `hanigege/sing-box1.13.13-gateway-ui` | `/Users/mana/Documents/codex/sing-box1.13.13-gateway-ui` | 另一个 sing-box 1.13.13 网关仓库。代码结构和前两个一致。 |
+
+前端的 textarea 批量编辑改造三个仓库已同步（2026-06-24）。
+修改前端静态文件（index.html、styles.css、app.js）时，如果需要同步到其他仓库，三个路径分别改。
