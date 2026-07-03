@@ -274,7 +274,8 @@ def main():
                 "domain_suffix": [
                     "mmstat.com",
                     "tanx.com",
-                    "alimama.com"
+                    "alimama.com",
+                    "taobao.co"
                 ]
             }
         ]
