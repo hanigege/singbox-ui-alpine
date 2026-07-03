@@ -266,11 +266,20 @@ def main():
     }
     for name in ("blacklist", "greylist", "ddns"):
         write_json(RULE_DIR / f"{name}.json", empty_rule_set())
-    # whitelist 预置常用国内 CDN 域名后缀，避免缺失规则集时走 FakeIP 代理
-    write_json(RULE_DIR / "whitelist.json", {
+    # whitelist 预置阿里系域名直连，避免缺失规则集或未收录时走 FakeIP 代理导致订单页等前端依赖卡住
+    default_whitelist = {
         "version": 3,
-        "rules": [{"domain_suffix": ["tao.co"]}]
-    })
+        "rules": [
+            {
+                "domain_suffix": [
+                    "mmstat.com",
+                    "tanx.com",
+                    "alimama.com"
+                ]
+            }
+        ]
+    }
+    write_json(RULE_DIR / "whitelist.json", default_whitelist)
     write_json(BASE_CONFIG_PATH, base)
     write_json(NODES_PATH, nodes)
     write_json(GROUPS_PATH, groups)
