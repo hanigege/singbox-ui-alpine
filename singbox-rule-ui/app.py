@@ -29,6 +29,7 @@ BASE_CONFIG_PATH = MANAGER_DIR / "base.json"
 NODES_PATH = MANAGER_DIR / "nodes.json"
 GROUPS_PATH = MANAGER_DIR / "groups.json"
 BACKUP_DIR = MANAGER_DIR / "backups"
+BACKUP_RETENTION = 20
 RULE_UPDATE_LAST_PATH = MANAGER_DIR / "rule-update-last.json"
 TELEGRAM_CIDR_PATH = MANAGER_DIR / "telegram-cidr.json"
 RULE_UPDATE_SCRIPT = Path(os.environ.get("RULE_UI_RULE_UPDATE_SCRIPT", "/usr/local/sbin/update-sing-box-rules-jsdelivr"))
@@ -81,7 +82,7 @@ LOCAL_DNS_CHOICES = {
     "114dns": {"label": "114 DNS", "server": "114.114.114.114", "server_port": 53},
     "custom_dns": {"label": "Custom", "server": "manual", "server_port": 53},
 }
-DEFAULT_LOCAL_DNS_CHOICE = "alidns"
+DEFAULT_LOCAL_DNS_CHOICE = "dnspod"
 LOCAL_DNS_BY_SERVER = {item["server"]: key for key, item in LOCAL_DNS_CHOICES.items()}
 DEFAULT_INTERRUPT_EXIST_CONNECTIONS = False
 ENTRY_TYPES = ("domain", "domain_suffix", "domain_keyword", "domain_regex", "ip_cidr")
@@ -202,7 +203,24 @@ def backup_path(path, backup_dir):
     backup_dir.mkdir(parents=True, exist_ok=True)
     target = backup_dir / f"{path.name}.bak-{now_stamp()}"
     shutil.copy2(path, target)
+    prune_backups(backup_dir, path.name)
     return {"existed": True, "backup": str(target)}
+
+
+def prune_backups(backup_dir, filename, keep=BACKUP_RETENTION):
+    try:
+        backups = sorted(
+            backup_dir.glob(f"{filename}.bak-*"),
+            key=lambda item: item.stat().st_mtime,
+            reverse=True,
+        )
+    except OSError:
+        return
+    for item in backups[keep:]:
+        try:
+            item.unlink()
+        except OSError:
+            pass
 
 
 def load_json(path, fallback):
