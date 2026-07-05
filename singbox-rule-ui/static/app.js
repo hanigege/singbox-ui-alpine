@@ -149,16 +149,21 @@ const translations = {
     configHealthOk: "No duplicate managed rules",
     configHealthWarn: "Duplicate or excessive managed rules detected",
     configHealthSummary: "Health summary",
-    configHealthPerfect: "Perfect health",
-    configHealthHealthy: "Healthy",
-    configHealthAttention: "Needs attention",
+    configHealthGreat: "Excellent",
+    configHealthNormal: "Running normally",
+    configHealthProblem: "Problem found",
+    configHealthReasonDuplicateRules: "duplicate rules",
+    configHealthReasonUdp443Rules: "too many UDP/443 reject rules",
+    configHealthReasonRouteOrder: "route order is wrong",
+    configHealthReasonFakeipRoute: "FakeIP route is missing",
+    configHealthReasonLocalDns: "local DNS is missing",
+    configHealthReasonRouteFinal: "fallback route is not direct",
     activeLocalDns: "Active local DNS",
     activeFakeip: "Active FakeIP",
     routeFinal: "Fallback route",
     routeOrderStatus: "Route order",
     fakeipRouteStatus: "FakeIP route",
     interfaceMtu: "Interface MTU",
-    bareDirectRules: "Bare direct rules",
     routeOrderOk: "Proxy rules visible",
     routeOrderWarn: "Bare direct before proxy",
     fakeipRouteOk: "Ready",
@@ -443,16 +448,21 @@ const translations = {
     configHealthOk: "未发现重复受管理规则",
     configHealthWarn: "发现重复或过量受管理规则",
     configHealthSummary: "健康总评",
-    configHealthPerfect: "完美健康",
-    configHealthHealthy: "健康",
-    configHealthAttention: "需要关注",
+    configHealthGreat: "状态极佳",
+    configHealthNormal: "运行正常",
+    configHealthProblem: "发现问题",
+    configHealthReasonDuplicateRules: "存在重复规则",
+    configHealthReasonUdp443Rules: "UDP/443 拒绝规则过多",
+    configHealthReasonRouteOrder: "路由顺序异常",
+    configHealthReasonFakeipRoute: "FakeIP 路由缺失",
+    configHealthReasonLocalDns: "本地 DNS 缺失",
+    configHealthReasonRouteFinal: "兜底出口不是 direct",
     activeLocalDns: "当前本地 DNS",
     activeFakeip: "当前 FakeIP",
     routeFinal: "兜底出口",
     routeOrderStatus: "路由顺序",
     fakeipRouteStatus: "FakeIP 路由",
     interfaceMtu: "网卡 MTU",
-    bareDirectRules: "裸直连规则",
     routeOrderOk: "代理规则可命中",
     routeOrderWarn: "裸直连挡在代理前",
     fakeipRouteOk: "已就绪",
@@ -1145,10 +1155,13 @@ function formatFakeipStatus(item) {
 }
 
 function formatHealthSummary(summary) {
-  const level = summary?.level || "attention";
-  if (level === "perfect") return t("configHealthPerfect");
-  if (level === "healthy") return t("configHealthHealthy");
-  return t("configHealthAttention");
+  const level = summary?.level || "problem";
+  if (level === "great") return t("configHealthGreat");
+  if (level === "normal") return t("configHealthNormal");
+  const reasons = (summary?.reasons || [])
+    .map((reason) => t(`configHealthReason${reason.split("_").map((part) => part[0].toUpperCase() + part.slice(1)).join("")}`))
+    .filter(Boolean);
+  return reasons.length ? `${t("configHealthProblem")}：${reasons.join("、")}` : t("configHealthProblem");
 }
 
 function compactRuleMessages(items) {
@@ -1307,7 +1320,6 @@ function renderMaintenance() {
     [t("activeFakeip"), formatFakeipStatus(configHealth.fakeip), configHealth.fakeipRouteOk === false ? "warn" : "good"],
     [t("fakeipRouteStatus"), configHealth.fakeipRouteOk === false ? t("fakeipRouteWarn") : t("fakeipRouteOk"), configHealth.fakeipRouteOk === false ? "warn" : "good"],
     [t("routeOrderStatus"), configHealth.routeOrderOk === false ? t("routeOrderWarn") : t("routeOrderOk"), configHealth.routeOrderOk === false ? "warn" : "good"],
-    [t("bareDirectRules"), configHealth.bareDirectRuleIndexes?.length ? configHealth.bareDirectRuleIndexes.join(", ") : "0", configHealth.bareDirectRuleIndexes?.length ? "warn" : "good"],
     [t("routeFinal"), configHealth.routeFinal || t("unknown"), configHealth.routeFinal === "direct" ? "good" : "warn"],
     [t("interfaceMtu"), configHealth.interfaceMtu || t("unknown"), String(configHealth.interfaceMtu) === "1492" ? "good" : "soft"],
     [t("routeRuleCount"), configHealth.routeRules ?? 0],

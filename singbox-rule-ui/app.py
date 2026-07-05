@@ -2698,8 +2698,6 @@ def config_health_status():
         "dns": duplicate_count(dns_rules),
         "ruleSet": duplicate_count(rule_sets),
     }
-    # 维护页只做只读体检，不参与配置生成；这里用于提前发现重复规则膨胀，避免长期保存后拖慢路由匹配。
-    ok = not any(duplicates.values()) and len(udp443_reject) <= 2 and route_order_ok and fakeip_route_ok
     mtu = interface_mtu(first_default_interface())
     local_dns_status = {
         "type": local_dns.get("type", ""),
@@ -2710,6 +2708,15 @@ def config_health_status():
         "inet4Range": fakeip_dns.get("inet4_range", ""),
         "inet6Range": fakeip_dns.get("inet6_range", ""),
     }
+    # 维护页只做只读体检，不参与配置生成；这里用于提前发现重复规则膨胀，避免长期保存后拖慢路由匹配。
+    ok = (
+        not any(duplicates.values())
+        and len(udp443_reject) <= 2
+        and route_order_ok
+        and fakeip_route_ok
+        and bool(local_dns_status.get("server"))
+        and route.get("final") == "direct"
+    )
     summary = config_health_summary(
         ok=ok,
         route_order_ok=route_order_ok,
@@ -2717,6 +2724,8 @@ def config_health_status():
         mtu=mtu,
         route_final=route.get("final", ""),
         local_dns=local_dns_status,
+        duplicates=duplicates,
+        udp443_reject_count=len(udp443_reject),
     )
     return {
         "ok": ok,
@@ -2738,7 +2747,20 @@ def config_health_status():
     }
 
 
-def config_health_summary(ok, route_order_ok, fakeip_route_ok, mtu, route_final, local_dns):
+def config_health_summary(ok, route_order_ok, fakeip_route_ok, mtu, route_final, local_dns, duplicates, udp443_reject_count):
+    reasons = []
+    if any(duplicates.values()):
+        reasons.append("duplicate_rules")
+    if udp443_reject_count > 2:
+        reasons.append("udp443_rules")
+    if not route_order_ok:
+        reasons.append("route_order")
+    if not fakeip_route_ok:
+        reasons.append("fakeip_route")
+    if not local_dns.get("server"):
+        reasons.append("local_dns")
+    if route_final != "direct":
+        reasons.append("route_final")
     if (
         ok
         and route_order_ok
@@ -2747,10 +2769,10 @@ def config_health_summary(ok, route_order_ok, fakeip_route_ok, mtu, route_final,
         and route_final == "direct"
         and bool(local_dns.get("server"))
     ):
-        return {"level": "perfect", "tone": "good"}
+        return {"level": "great", "tone": "good", "reasons": []}
     if ok:
-        return {"level": "healthy", "tone": "good"}
-    return {"level": "attention", "tone": "warn"}
+        return {"level": "normal", "tone": "good", "reasons": []}
+    return {"level": "problem", "tone": "warn", "reasons": reasons}
 
 
 def interface_mtu(iface):
