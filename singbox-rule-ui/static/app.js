@@ -148,6 +148,17 @@ const translations = {
     configHealthStatus: "Config health",
     configHealthOk: "No duplicate managed rules",
     configHealthWarn: "Duplicate or excessive managed rules detected",
+    activeLocalDns: "Active local DNS",
+    activeFakeip: "Active FakeIP",
+    routeFinal: "Fallback route",
+    routeOrderStatus: "Route order",
+    fakeipRouteStatus: "FakeIP route",
+    interfaceMtu: "Interface MTU",
+    bareDirectRules: "Bare direct rules",
+    routeOrderOk: "Proxy rules visible",
+    routeOrderWarn: "Bare direct before proxy",
+    fakeipRouteOk: "Ready",
+    fakeipRouteWarn: "Missing",
     routeRuleCount: "Route rules",
     dnsRuleCount: "DNS rules",
     ruleSetCount: "Rule sets",
@@ -427,6 +438,17 @@ const translations = {
     configHealthStatus: "配置健康",
     configHealthOk: "未发现重复受管理规则",
     configHealthWarn: "发现重复或过量受管理规则",
+    activeLocalDns: "当前本地 DNS",
+    activeFakeip: "当前 FakeIP",
+    routeFinal: "兜底出口",
+    routeOrderStatus: "路由顺序",
+    fakeipRouteStatus: "FakeIP 路由",
+    interfaceMtu: "网卡 MTU",
+    bareDirectRules: "裸直连规则",
+    routeOrderOk: "代理规则可命中",
+    routeOrderWarn: "裸直连挡在代理前",
+    fakeipRouteOk: "已就绪",
+    fakeipRouteWarn: "缺失",
     routeRuleCount: "路由规则数",
     dnsRuleCount: "DNS 规则数",
     ruleSetCount: "规则集数",
@@ -1104,6 +1126,16 @@ function renderMaintenanceOverview(items) {
   return card;
 }
 
+function formatLocalDnsStatus(item) {
+  if (!item || !item.server) return t("unknown");
+  return `${item.server}${item.port ? `:${item.port}` : ""}`;
+}
+
+function formatFakeipStatus(item) {
+  if (!item) return t("unknown");
+  return [item.inet4Range, item.inet6Range].filter(Boolean).join(" · ") || t("unknown");
+}
+
 function compactRuleMessages(items) {
   if (!Array.isArray(items) || !items.length) return t("unknown");
   return items
@@ -1230,9 +1262,10 @@ function renderMaintenance() {
 
   rows.appendChild(renderMaintenanceOverview([
     [t("configHealthStatus"), configHealth.ok === false ? t("configHealthWarn") : t("configHealthOk"), configHealth.ok === false ? "warn" : "good"],
+    [t("activeLocalDns"), formatLocalDnsStatus(configHealth.localDns), configHealth.localDns?.server ? "good compact" : "warn"],
+    [t("interfaceMtu"), configHealth.interfaceMtu || t("unknown"), String(configHealth.interfaceMtu) === "1492" ? "good compact" : "soft compact"],
+    [t("routeOrderStatus"), configHealth.routeOrderOk === false ? t("routeOrderWarn") : t("routeOrderOk"), configHealth.routeOrderOk === false ? "warn" : "good"],
     [t("updateResult"), updateResult, statusTone(updateResult)],
-    [t("updatedCount"), String((summary.updated || []).length), "good"],
-    [t("tproxyService"), tproxy.serviceActive, statusTone(tproxy.serviceActive)],
     [t("nextUpdate"), rule.next, rule.next ? "good compact" : ""],
   ]));
 
@@ -1254,6 +1287,13 @@ function renderMaintenance() {
   ], `${t("tproxyPolicy")}${tproxy.ipv6PrefixMatches === false ? ` ${t("prefixMismatch")}` : ""}`));
   rows.appendChild(renderMaintenanceDetails(t("configHealthTitle"), [
     [t("configHealthStatus"), configHealth.ok === false ? t("configHealthWarn") : t("configHealthOk"), configHealth.ok === false ? "warn" : "good"],
+    [t("activeLocalDns"), formatLocalDnsStatus(configHealth.localDns), configHealth.localDns?.server ? "good" : "warn"],
+    [t("activeFakeip"), formatFakeipStatus(configHealth.fakeip), configHealth.fakeipRouteOk === false ? "warn" : "good"],
+    [t("fakeipRouteStatus"), configHealth.fakeipRouteOk === false ? t("fakeipRouteWarn") : t("fakeipRouteOk"), configHealth.fakeipRouteOk === false ? "warn" : "good"],
+    [t("routeOrderStatus"), configHealth.routeOrderOk === false ? t("routeOrderWarn") : t("routeOrderOk"), configHealth.routeOrderOk === false ? "warn" : "good"],
+    [t("bareDirectRules"), configHealth.bareDirectRuleIndexes?.length ? configHealth.bareDirectRuleIndexes.join(", ") : "0", configHealth.bareDirectRuleIndexes?.length ? "warn" : "good"],
+    [t("routeFinal"), configHealth.routeFinal || t("unknown"), configHealth.routeFinal === "direct" ? "good" : "warn"],
+    [t("interfaceMtu"), configHealth.interfaceMtu || t("unknown"), String(configHealth.interfaceMtu) === "1492" ? "good" : "soft"],
     [t("routeRuleCount"), configHealth.routeRules ?? 0],
     [t("dnsRuleCount"), configHealth.dnsRules ?? 0],
     [t("ruleSetCount"), configHealth.ruleSets ?? 0],

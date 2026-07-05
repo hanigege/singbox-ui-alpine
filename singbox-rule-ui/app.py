@@ -913,7 +913,14 @@ def prune_managed_outbound_references(config, valid_tags):
 
 
 def apply_route_final_policy(config):
-    config.setdefault("route", {})["final"] = "direct"
+    route = config.setdefault("route", {})
+    rules = route.setdefault("rules", [])
+    rules[:] = [
+        rule
+        for rule in rules
+        if not (isinstance(rule, dict) and rule.get("outbound") == "direct" and set(rule.keys()) == {"outbound"})
+    ]
+    route["final"] = "direct"
 
 
 def managed_binary_rule_set(tag, path):
@@ -2650,6 +2657,34 @@ def config_health_status():
     route_rules = config.get("route", {}).get("rules", []) or []
     dns_rules = config.get("dns", {}).get("rules", []) or []
     rule_sets = config.get("route", {}).get("rule_set", []) or []
+    route = config.get("route", {}) or {}
+    dns_servers = config.get("dns", {}).get("servers", []) or []
+    local_dns = next((item for item in dns_servers if isinstance(item, dict) and item.get("tag") == "local-dns"), {})
+    fakeip_dns = next((item for item in dns_servers if isinstance(item, dict) and item.get("type") == "fakeip"), {})
+    bare_direct_indexes = [
+        index + 1
+        for index, rule in enumerate(route_rules)
+        if isinstance(rule, dict) and rule.get("outbound") == "direct" and set(rule.keys()) == {"outbound"}
+    ]
+    geosite_proxy_indexes = [
+        index + 1
+        for index, rule in enumerate(route_rules)
+        if isinstance(rule, dict)
+        and rule.get("outbound") == "Proxy"
+        and (
+            rule.get("rule_set") == "geosite-geolocation-!cn"
+            or (isinstance(rule.get("rule_set"), list) and "geosite-geolocation-!cn" in rule.get("rule_set"))
+        )
+    ]
+    fakeip_ranges = [item for item in (fakeip_dns.get("inet4_range"), fakeip_dns.get("inet6_range")) if item]
+    fakeip_route_ok = any(
+        isinstance(rule, dict)
+        and rule.get("outbound") == "Proxy"
+        and isinstance(rule.get("ip_cidr"), list)
+        and all(item in rule.get("ip_cidr", []) for item in fakeip_ranges)
+        for rule in route_rules
+    ) if fakeip_ranges else False
+    route_order_ok = not bare_direct_indexes or not geosite_proxy_indexes or min(geosite_proxy_indexes) < min(bare_direct_indexes)
     udp443_reject = [
         rule
         for rule in route_rules
@@ -2664,7 +2699,7 @@ def config_health_status():
         "ruleSet": duplicate_count(rule_sets),
     }
     # 维护页只做只读体检，不参与配置生成；这里用于提前发现重复规则膨胀，避免长期保存后拖慢路由匹配。
-    ok = not any(duplicates.values()) and len(udp443_reject) <= 2
+    ok = not any(duplicates.values()) and len(udp443_reject) <= 2 and route_order_ok and fakeip_route_ok
     return {
         "ok": ok,
         "routeRules": len(route_rules),
@@ -2673,7 +2708,35 @@ def config_health_status():
         "outbounds": len(config.get("outbounds", []) or []),
         "duplicateRules": duplicates,
         "udp443RejectRules": len(udp443_reject),
+        "routeFinal": route.get("final", ""),
+        "bareDirectRuleIndexes": bare_direct_indexes,
+        "geositeProxyRuleIndexes": geosite_proxy_indexes,
+        "routeOrderOk": route_order_ok,
+        "fakeipRouteOk": fakeip_route_ok,
+        "localDns": {
+            "type": local_dns.get("type", ""),
+            "server": local_dns.get("server", ""),
+            "port": local_dns.get("server_port", ""),
+        },
+        "fakeip": {
+            "inet4Range": fakeip_dns.get("inet4_range", ""),
+            "inet6Range": fakeip_dns.get("inet6_range", ""),
+        },
+        "interfaceMtu": interface_mtu(first_default_interface()),
     }
+
+
+def interface_mtu(iface):
+    if not iface:
+        return ""
+    result = run_command(["ip", "-o", "link", "show", "dev", iface], timeout=8)
+    parts = result["stdout"].split()
+    if "mtu" not in parts:
+        return ""
+    try:
+        return parts[parts.index("mtu") + 1]
+    except IndexError:
+        return ""
 
 
 def update_rule_sets():
