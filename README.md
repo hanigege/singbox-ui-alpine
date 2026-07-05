@@ -155,12 +155,26 @@ SING_BOX_GATEWAY_ENABLE_RADVD=1 /usr/local/sbin/refresh-sing-box-runtime-config
 /ipv6/nd/print detail where interface=bridge1
 ```
 
-如果你的 LAN 接口不是 `bridge1`，请替换成实际接口名；如果 PPPoE MTU 不是 `1492`，请使用 `/interface/print detail` 里 `pppoe-out` 的 `actual-mtu`。改完后，让客户端重新获取 RA：断开/重连 Wi-Fi、重启网卡，或等待下一次 RA。Linux/Alpine 客户端可临时验证：
+如果你的 LAN 接口不是 `bridge1`，请替换成实际接口名；如果 PPPoE MTU 不是 `1492`，请使用 `/interface/print detail` 里 `pppoe-out` 的 `actual-mtu`。改完后，让客户端重新获取 RA：断开/重连 Wi-Fi、重启网卡，或等待下一次 RA。
+
+sing-box 所在的 Alpine 机器本身也是 LAN IPv6 客户端。如果它已经在线并仍显示 `mtu 1500`，可以立即把默认网卡 MTU 调成同一个值来验证：
 
 ```bash
 ip link show dev eth0
+ip link set dev eth0 mtu 1492
+ip link show dev eth0
 curl -6 -m 6 -o /dev/null -w '%{http_code} %{time_total} %{remote_ip}\n' https://h5api.m.taobao.com/
 ```
+
+要持久化 Alpine 网卡 MTU，请按实际网络管理方式配置。例如使用 `/etc/network/interfaces` 的系统可在对应网卡下加入：
+
+```interfaces
+auto eth0
+iface eth0 inet dhcp
+    mtu 1492
+```
+
+如果网卡名不是 `eth0`，请替换成实际默认出口接口，可用 `ip route get 1.1.1.1` 查看。LXC 场景下也可以在 PVE/上游网络侧统一限制 veth/bridge MTU；原则是 LAN 客户端看到的 IPv6 MTU 不要大于 PPPoE 出口实际 MTU。
 
 这个设置和公网 IPv6 前缀是否动态无关；前缀变了也仍然适用。
 

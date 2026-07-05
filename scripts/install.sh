@@ -473,6 +473,7 @@ main() {
   echo "Installed on Alpine/OpenRC."
   echo "Host resolver was left unchanged. Configure client/router resolver manually if needed."
   echo "IPv6 PPPoE note: set the upstream router LAN RA MTU to the PPPoE actual MTU, usually 1492."
+  echo "If this Alpine host still shows MTU 1500, verify with: ip link set dev eth0 mtu 1492"
   echo "RouterOS example: /ipv6/nd/set [find interface=bridge1] mtu=1492"
   sing-box-gateway-info
 }
