@@ -174,7 +174,7 @@ const translations = {
     outboundCount: "Outbounds",
     udp443RejectCount: "UDP/443 reject rules",
     ruleUpdateTitle: "Rule-set updates",
-    ruleUpdateDetails: "Rule update details",
+    ruleUpdateDetails: "Rule update status",
     updatedRules: "Updated",
     keptRules: "Optional cache",
     skippedRules: "Skipped",
@@ -472,7 +472,7 @@ const translations = {
     outboundCount: "出站数",
     udp443RejectCount: "UDP/443 拒绝规则数",
     ruleUpdateTitle: "分流规则更新",
-    ruleUpdateDetails: "规则更新明细",
+    ruleUpdateDetails: "规则更新状态",
     updatedRules: "已更新",
     keptRules: "可选规则缓存",
     skippedRules: "已跳过",
@@ -1298,15 +1298,20 @@ function renderMaintenance() {
   const keptCount = (summary.kept || []).length;
   const errorCount = (summary.errors || []).length;
   const finalTone = errorCount ? "bad" : isRuleCacheSafe(summary) ? "warn" : summary.requiredOk ? "good" : summary.final ? "soft" : "";
-  const ruleDetailItems = hasDetails ? [
-    [t("finalResult"), formatRuleFinal(summary), finalTone],
+  const ruleDetailItems = [
+    [t("finalResult"), hasDetails ? formatRuleFinal(summary) : t("noUpdateDetails"), hasDetails ? finalTone : ""],
     [t("updatedCount"), String((summary.updated || []).length), "good"],
-    [t("optionalCount"), keptCount ? `${keptCount} · ${ruleNames(summary.kept)}` : "0", keptCount ? "soft" : "good"],
-    [t("keptRules"), keptCount ? t("optionalCacheOk") : "0", keptCount ? "soft" : "good"],
-    [t("errorDetails"), errorCount ? compactRuleMessages(summary.errors) : "0", errorCount ? "bad" : "good"],
-  ] : [
-    [t("ruleUpdateDetails"), t("noUpdateDetails")],
+    [t("nextUpdate"), rule.next],
+    [t("lastUpdate"), rule.last],
+    [t("updateScript"), rule.scriptExists ? rule.script : t("unknown"), rule.scriptExists ? "good" : "bad"],
   ];
+  if (keptCount) {
+    ruleDetailItems.push([t("optionalCount"), `${keptCount} · ${ruleNames(summary.kept)}`, "soft"]);
+    ruleDetailItems.push([t("keptRules"), t("optionalCacheOk"), "soft"]);
+  }
+  if (errorCount) {
+    ruleDetailItems.push([t("errorDetails"), compactRuleMessages(summary.errors), "bad"]);
+  }
 
   const updateResult = rule.result || rule.serviceState;
 
@@ -1349,12 +1354,7 @@ function renderMaintenance() {
     [t("udp443RejectCount"), configHealth.udp443RejectRules ?? 0, Number(configHealth.udp443RejectRules || 0) > 2 ? "warn" : "good"],
     [t("configHealthSummary"), formatHealthSummary(configHealth.summary), configHealth.summary?.tone || (configHealth.ok === false ? "warn" : "good")],
   ]));
-  rows.appendChild(renderMaintenanceDetails(t("ruleUpdateTitle"), [
-    [t("nextUpdate"), rule.next],
-    [t("lastUpdate"), rule.last],
-    [t("updateScript"), rule.scriptExists ? rule.script : t("unknown"), rule.scriptExists ? "good" : "bad"],
-  ]));
-  rows.appendChild(renderMaintenanceDetails(t("ruleUpdateDetails"), ruleDetailItems));
+  rows.appendChild(renderMaintenanceDetails(t("ruleUpdateTitle"), ruleDetailItems));
   renderTelegramCidrPanel();
 }
 
