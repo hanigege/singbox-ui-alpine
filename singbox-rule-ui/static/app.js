@@ -1144,6 +1144,24 @@ function renderMaintenanceOverview(items) {
   return card;
 }
 
+function renderHealthSummaryBanner(configHealth) {
+  const summary = configHealth?.summary || {};
+  const banner = document.createElement("section");
+  banner.className = `health-summary-banner ${summary.tone || (configHealth?.ok === false ? "warn" : "good")}`.trim();
+  const marker = document.createElement("span");
+  marker.className = "health-summary-marker";
+  marker.setAttribute("aria-hidden", "true");
+  const body = document.createElement("div");
+  const label = document.createElement("span");
+  label.className = "health-summary-label";
+  label.textContent = t("configHealthSummary");
+  const value = document.createElement("strong");
+  value.textContent = formatHealthSummary(summary);
+  body.append(label, value);
+  banner.append(marker, body);
+  return banner;
+}
+
 function formatLocalDnsStatus(item) {
   if (!item || !item.server) return t("unknown");
   return `${item.server}${item.port ? `:${item.port}` : ""}`;
@@ -1288,15 +1306,16 @@ function renderMaintenance() {
 
   const updateResult = rule.result || rule.serviceState;
 
-  rows.appendChild(renderMaintenanceOverview([
-    [t("configHealthSummary"), formatHealthSummary(configHealth.summary), configHealth.summary?.tone || (configHealth.ok === false ? "warn" : "good")],
+  const overview = renderMaintenanceOverview([
     [t("configHealthStatus"), configHealth.ok === false ? t("configHealthWarn") : t("configHealthOk"), configHealth.ok === false ? "warn" : "good"],
     [t("activeLocalDns"), formatLocalDnsStatus(configHealth.localDns), configHealth.localDns?.server ? "good compact" : "warn"],
     [t("interfaceMtu"), configHealth.interfaceMtu || t("unknown"), String(configHealth.interfaceMtu) === "1492" ? "good compact" : "soft compact"],
     [t("routeOrderStatus"), configHealth.routeOrderOk === false ? t("routeOrderWarn") : t("routeOrderOk"), configHealth.routeOrderOk === false ? "warn" : "good"],
     [t("updateResult"), updateResult, statusTone(updateResult)],
     [t("nextUpdate"), rule.next, rule.next ? "good compact" : ""],
-  ]));
+  ]);
+  overview.insertBefore(renderHealthSummaryBanner(configHealth), overview.children[1] || null);
+  rows.appendChild(overview);
 
   // 维护页按折叠分组纵向排列，标题只保留箭头和名称，避免右侧状态字干扰扫读。
   rows.appendChild(renderMaintenanceDetails(t("tproxyDetailsTitle"), [
@@ -1326,11 +1345,6 @@ function renderMaintenance() {
     [t("dnsRuleCount"), configHealth.dnsRules ?? 0],
     [t("ruleSetCount"), configHealth.ruleSets ?? 0],
     [t("outboundCount"), configHealth.outbounds ?? 0],
-    [
-      t("duplicateRuleCount"),
-      `${configHealth.duplicateRules?.route ?? 0}/${configHealth.duplicateRules?.dns ?? 0}/${configHealth.duplicateRules?.ruleSet ?? 0}`,
-      configHealth.ok === false ? "warn" : "good",
-    ],
     [t("udp443RejectCount"), configHealth.udp443RejectRules ?? 0, Number(configHealth.udp443RejectRules || 0) > 2 ? "warn" : "good"],
     [t("configHealthSummary"), formatHealthSummary(configHealth.summary), configHealth.summary?.tone || (configHealth.ok === false ? "warn" : "good")],
   ]));
