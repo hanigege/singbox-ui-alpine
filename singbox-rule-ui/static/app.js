@@ -172,7 +172,6 @@ const translations = {
     dnsRuleCount: "DNS rules",
     ruleSetCount: "Rule sets",
     outboundCount: "Outbounds",
-    duplicateRuleCount: "Duplicate rules",
     udp443RejectCount: "UDP/443 reject rules",
     ruleUpdateTitle: "Rule-set updates",
     ruleUpdateDetails: "Rule update details",
@@ -471,7 +470,6 @@ const translations = {
     dnsRuleCount: "DNS 规则数",
     ruleSetCount: "规则集数",
     outboundCount: "出站数",
-    duplicateRuleCount: "重复规则数",
     udp443RejectCount: "UDP/443 拒绝规则数",
     ruleUpdateTitle: "分流规则更新",
     ruleUpdateDetails: "规则更新明细",
@@ -1307,10 +1305,7 @@ function renderMaintenance() {
   const updateResult = rule.result || rule.serviceState;
 
   const overview = renderMaintenanceOverview([
-    [t("configHealthStatus"), configHealth.ok === false ? t("configHealthWarn") : t("configHealthOk"), configHealth.ok === false ? "warn" : "good"],
-    [t("activeLocalDns"), formatLocalDnsStatus(configHealth.localDns), configHealth.localDns?.server ? "good compact" : "warn"],
     [t("interfaceMtu"), configHealth.interfaceMtu || t("unknown"), String(configHealth.interfaceMtu) === "1492" ? "good compact" : "soft compact"],
-    [t("routeOrderStatus"), configHealth.routeOrderOk === false ? t("routeOrderWarn") : t("routeOrderOk"), configHealth.routeOrderOk === false ? "warn" : "good"],
     [t("updateResult"), updateResult, statusTone(updateResult)],
     [t("nextUpdate"), rule.next, rule.next ? "good compact" : ""],
   ]);
