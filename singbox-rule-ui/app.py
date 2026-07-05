@@ -1752,16 +1752,18 @@ def cron_block_lines(begin, end):
 def parse_rule_update_schedule():
     cron_line = next((line.strip() for line in cron_block_lines(RULE_UPDATE_CRON_BEGIN, RULE_UPDATE_CRON_END) if line.strip() and not line.strip().startswith("#")), "")
     match = re.match(r"^(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+(\*|[0-7])\s+", cron_line)
+    delay_match = re.search(r"\bdelay=(\d{1,4})\b", cron_line)
     minute = int(match.group(1)) if match else 20
     hour = int(match.group(2)) if match else 4
     day_of_week = match.group(3) if match else "0"
     frequency = "daily" if match and day_of_week == "*" else "weekly"
+    randomized_delay_minutes = int(delay_match.group(1)) if delay_match else 0
     return {
         "frequency": frequency,
         "hour": hour,
         "minute": minute,
         "dayOfWeek": day_of_week,
-        "randomizedDelayHours": 0,
+        "randomizedDelayMinutes": randomized_delay_minutes,
         "persistent": False,
         "nextBase": "",
         "dropin": str(ROOT_CRONTAB),
@@ -1797,7 +1799,11 @@ def normalize_rule_update_schedule(payload):
         frequency = str(payload.get("frequency", "weekly")).strip()
         hour = int(payload.get("hour"))
         minute = int(payload.get("minute"))
-        randomized_delay_hours = int(payload.get("randomizedDelayHours", payload.get("randomizedDelayMinutes", 0)))
+        if "randomizedDelayMinutes" in payload:
+            randomized_delay_minutes = int(payload.get("randomizedDelayMinutes", 0))
+        else:
+            # 旧 UI 曾用小时做单位；保存旧 payload 时转换成分钟，避免含义悄悄变化。
+            randomized_delay_minutes = int(payload.get("randomizedDelayHours", 0)) * 60
     except (TypeError, ValueError):
         raise ValueError("自动更新时间必须是有效数字")
     if frequency not in {"daily", "weekly"}:
@@ -1806,18 +1812,20 @@ def normalize_rule_update_schedule(payload):
         raise ValueError("自动更新时间小时必须在 0 到 23 之间")
     if not 0 <= minute <= 59:
         raise ValueError("自动更新时间分钟必须在 0 到 59 之间")
-    if not 0 <= randomized_delay_hours <= 24:
-        raise ValueError("随机延迟小时必须在 0 到 24 之间")
-    return {"frequency": frequency, "hour": hour, "minute": minute, "randomizedDelayHours": randomized_delay_hours}
+    if not 0 <= randomized_delay_minutes <= 180:
+        raise ValueError("随机延迟分钟必须在 0 到 180 之间")
+    return {"frequency": frequency, "hour": hour, "minute": minute, "randomizedDelayMinutes": randomized_delay_minutes}
 
 
 def write_rule_update_schedule(payload):
     schedule = normalize_rule_update_schedule(payload)
     requested_dow = str(payload.get("dayOfWeek", "0"))
     dow = requested_dow if schedule["frequency"] == "weekly" and requested_dow in {"0", "1", "2", "3", "4", "5", "6", "7"} else "*"
+    delay = int(schedule.get("randomizedDelayMinutes", 0))
+    random_sleep = f"delay={delay}; [ \"$delay\" -gt 0 ] && sleep $(awk -v max=\"$delay\" 'BEGIN{{srand(); print int(rand()*(max*60+1))}}'); "
     cron_line = (
         f"{schedule['minute']} {schedule['hour']} * * {dow} "
-        "/usr/local/sbin/update-sing-box-rules-jsdelivr >> /var/log/sing-box-gateway/rule-update.log 2>&1"
+        f"{random_sleep}/usr/local/sbin/update-sing-box-rules-jsdelivr >> /var/log/sing-box-gateway/rule-update.log 2>&1"
     )
     text = read_crontab_text().splitlines()
     output = []
@@ -1849,7 +1857,7 @@ def reschedule_rule_update_cron_after_manual_success():
         "minute": now.tm_min,
         # cron 周日是 0，周一到周六是 1-6；手动成功后把 weekly 基准改成今天，等价于从本次更新顺延一个周期。
         "dayOfWeek": "0" if now.tm_wday == 6 else str(now.tm_wday + 1),
-        "randomizedDelayHours": schedule.get("randomizedDelayHours", 0),
+        "randomizedDelayMinutes": schedule.get("randomizedDelayMinutes", 0),
     }
     if payload["frequency"] == "daily":
         payload["dayOfWeek"] = "*"

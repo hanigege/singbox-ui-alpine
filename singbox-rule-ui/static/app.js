@@ -116,7 +116,7 @@ const translations = {
     ruleScheduleDaily: "Daily",
     ruleScheduleWeekly: "Weekly",
     ruleScheduleTime: "Time",
-    ruleScheduleDelay: "Random delay (hours)",
+    ruleScheduleDelay: "Random delay (minutes)",
     syncTproxy: "Sync TProxy",
     exportBackup: "Export backup",
     importBackup: "Import backup",
@@ -414,7 +414,7 @@ const translations = {
     ruleScheduleDaily: "每天",
     ruleScheduleWeekly: "每周",
     ruleScheduleTime: "执行时间",
-    ruleScheduleDelay: "随机延迟（小时）",
+    ruleScheduleDelay: "随机延迟（分钟）",
     syncTproxy: "同步 TProxy",
     exportBackup: "导出备份",
     importBackup: "导入备份",
@@ -675,7 +675,7 @@ function currentRuleScheduleForm() {
     frequency: frequency.value,
     hour: Number(hour),
     minute: Number(minute),
-    randomizedDelayHours: Number(delayInput.value),
+    randomizedDelayMinutes: Number(delayInput.value),
   };
 }
 
@@ -692,8 +692,14 @@ function ruleScheduleChangedFor(schedule) {
     current.frequency !== (schedule.frequency || "weekly") ||
     current.hour !== (Number.isInteger(schedule.hour) ? schedule.hour : 4) ||
     current.minute !== (Number.isInteger(schedule.minute) ? schedule.minute : 20) ||
-    current.randomizedDelayHours !== (Number.isInteger(schedule.randomizedDelayHours) ? schedule.randomizedDelayHours : 2)
+    current.randomizedDelayMinutes !== scheduleDelayMinutes(schedule)
   );
+}
+
+function scheduleDelayMinutes(schedule = {}) {
+  if (Number.isInteger(schedule.randomizedDelayMinutes)) return schedule.randomizedDelayMinutes;
+  if (Number.isInteger(schedule.randomizedDelayHours)) return schedule.randomizedDelayHours * 60;
+  return 0;
 }
 
 function setActionButton(id, textKey, tone = "") {
@@ -1069,9 +1075,9 @@ function renderRuleUpdateSchedule(schedule = {}) {
   delayInput.id = "ruleScheduleDelayInput";
   delayInput.type = "number";
   delayInput.min = "0";
-  delayInput.max = "24";
+  delayInput.max = "180";
   delayInput.step = "1";
-  delayInput.value = Number.isInteger(schedule.randomizedDelayHours) ? String(schedule.randomizedDelayHours) : "2";
+  delayInput.value = String(scheduleDelayMinutes(schedule));
   delayLabel.append(delayText, delayInput);
   for (const control of [frequency, timeInput, delayInput]) {
     // 自动更新时间是独立的 crond 配置，输入变化要立即反映保存状态，避免用户误以为无法保存。
@@ -1685,7 +1691,7 @@ async function saveRuleUpdateSchedule() {
     frequency: $("ruleScheduleFrequencyInput").value,
     hour,
     minute,
-    randomizedDelayHours: $("ruleScheduleDelayInput").value,
+    randomizedDelayMinutes: $("ruleScheduleDelayInput").value,
   };
   setBusy(true);
   pulseActionButton("saveRuleScheduleBtn", "savingRuleSchedule");
