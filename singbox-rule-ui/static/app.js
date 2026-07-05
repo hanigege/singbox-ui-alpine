@@ -148,6 +148,10 @@ const translations = {
     configHealthStatus: "Config health",
     configHealthOk: "No duplicate managed rules",
     configHealthWarn: "Duplicate or excessive managed rules detected",
+    configHealthSummary: "Health summary",
+    configHealthPerfect: "Perfect health",
+    configHealthHealthy: "Healthy",
+    configHealthAttention: "Needs attention",
     activeLocalDns: "Active local DNS",
     activeFakeip: "Active FakeIP",
     routeFinal: "Fallback route",
@@ -438,6 +442,10 @@ const translations = {
     configHealthStatus: "配置健康",
     configHealthOk: "未发现重复受管理规则",
     configHealthWarn: "发现重复或过量受管理规则",
+    configHealthSummary: "健康总评",
+    configHealthPerfect: "完美健康",
+    configHealthHealthy: "健康",
+    configHealthAttention: "需要关注",
     activeLocalDns: "当前本地 DNS",
     activeFakeip: "当前 FakeIP",
     routeFinal: "兜底出口",
@@ -1136,6 +1144,13 @@ function formatFakeipStatus(item) {
   return [item.inet4Range, item.inet6Range].filter(Boolean).join(" · ") || t("unknown");
 }
 
+function formatHealthSummary(summary) {
+  const level = summary?.level || "attention";
+  if (level === "perfect") return t("configHealthPerfect");
+  if (level === "healthy") return t("configHealthHealthy");
+  return t("configHealthAttention");
+}
+
 function compactRuleMessages(items) {
   if (!Array.isArray(items) || !items.length) return t("unknown");
   return items
@@ -1261,6 +1276,7 @@ function renderMaintenance() {
   const updateResult = rule.result || rule.serviceState;
 
   rows.appendChild(renderMaintenanceOverview([
+    [t("configHealthSummary"), formatHealthSummary(configHealth.summary), configHealth.summary?.tone || (configHealth.ok === false ? "warn" : "good")],
     [t("configHealthStatus"), configHealth.ok === false ? t("configHealthWarn") : t("configHealthOk"), configHealth.ok === false ? "warn" : "good"],
     [t("activeLocalDns"), formatLocalDnsStatus(configHealth.localDns), configHealth.localDns?.server ? "good compact" : "warn"],
     [t("interfaceMtu"), configHealth.interfaceMtu || t("unknown"), String(configHealth.interfaceMtu) === "1492" ? "good compact" : "soft compact"],
@@ -1304,6 +1320,7 @@ function renderMaintenance() {
       configHealth.ok === false ? "warn" : "good",
     ],
     [t("udp443RejectCount"), configHealth.udp443RejectRules ?? 0, Number(configHealth.udp443RejectRules || 0) > 2 ? "warn" : "good"],
+    [t("configHealthSummary"), formatHealthSummary(configHealth.summary), configHealth.summary?.tone || (configHealth.ok === false ? "warn" : "good")],
   ]));
   rows.appendChild(renderMaintenanceDetails(t("ruleUpdateTitle"), [
     [t("nextUpdate"), rule.next],

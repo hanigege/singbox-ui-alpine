@@ -2700,8 +2700,27 @@ def config_health_status():
     }
     # 维护页只做只读体检，不参与配置生成；这里用于提前发现重复规则膨胀，避免长期保存后拖慢路由匹配。
     ok = not any(duplicates.values()) and len(udp443_reject) <= 2 and route_order_ok and fakeip_route_ok
+    mtu = interface_mtu(first_default_interface())
+    local_dns_status = {
+        "type": local_dns.get("type", ""),
+        "server": local_dns.get("server", ""),
+        "port": local_dns.get("server_port", ""),
+    }
+    fakeip_status = {
+        "inet4Range": fakeip_dns.get("inet4_range", ""),
+        "inet6Range": fakeip_dns.get("inet6_range", ""),
+    }
+    summary = config_health_summary(
+        ok=ok,
+        route_order_ok=route_order_ok,
+        fakeip_route_ok=fakeip_route_ok,
+        mtu=mtu,
+        route_final=route.get("final", ""),
+        local_dns=local_dns_status,
+    )
     return {
         "ok": ok,
+        "summary": summary,
         "routeRules": len(route_rules),
         "dnsRules": len(dns_rules),
         "ruleSets": len(rule_sets),
@@ -2713,17 +2732,25 @@ def config_health_status():
         "geositeProxyRuleIndexes": geosite_proxy_indexes,
         "routeOrderOk": route_order_ok,
         "fakeipRouteOk": fakeip_route_ok,
-        "localDns": {
-            "type": local_dns.get("type", ""),
-            "server": local_dns.get("server", ""),
-            "port": local_dns.get("server_port", ""),
-        },
-        "fakeip": {
-            "inet4Range": fakeip_dns.get("inet4_range", ""),
-            "inet6Range": fakeip_dns.get("inet6_range", ""),
-        },
-        "interfaceMtu": interface_mtu(first_default_interface()),
+        "localDns": local_dns_status,
+        "fakeip": fakeip_status,
+        "interfaceMtu": mtu,
     }
+
+
+def config_health_summary(ok, route_order_ok, fakeip_route_ok, mtu, route_final, local_dns):
+    if (
+        ok
+        and route_order_ok
+        and fakeip_route_ok
+        and str(mtu) == "1492"
+        and route_final == "direct"
+        and bool(local_dns.get("server"))
+    ):
+        return {"level": "perfect", "tone": "good"}
+    if ok:
+        return {"level": "healthy", "tone": "good"}
+    return {"level": "attention", "tone": "warn"}
 
 
 def interface_mtu(iface):
