@@ -121,6 +121,16 @@
               <span data-i18n="localDnsUpstream">Upstream</span>
               <select id="localDnsSelect"></select>
             </label>
+            <div id="customDnsFields" class="custom-dns-fields hidden">
+              <label>
+                <span data-i18n="customDnsServer">Server</span>
+                <input type="text" id="customDnsServer" value="223.5.5.5" placeholder="223.5.5.5" />
+              </label>
+              <label>
+                <span data-i18n="customDnsPort">Port</span>
+                <input type="number" id="customDnsPort" value="53" min="1" max="65535" />
+              </label>
+            </div>
             <button id="refreshDnsDelayBtn" class="secondary-btn" type="button" data-i18n="refreshDnsDelay">Refresh DNS delay</button>
             <div id="dnsDelayRows" class="dns-delay-rows wide-field"></div>
           </section>

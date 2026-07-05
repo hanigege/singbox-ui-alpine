@@ -138,6 +138,32 @@ SING_BOX_GATEWAY_ENABLE_RADVD=1 /usr/local/sbin/refresh-sing-box-runtime-config
 
 生产网络里不建议在多台旁路机上同时启用 RA 广播。一般更稳的做法是：前端软路由继续作为默认网关，只把 FakeIP 网段或指定流量路由到 sing-box 机器。
 
+### PPPoE / RouterOS IPv6 MTU
+
+如果前端软路由通过 PPPoE 拨号，WAN MTU 通常是 `1492`，但 LAN 侧 IPv6 RA 如果不显式广播 MTU，客户端会按以太网默认 `1500` 发送 IPv6。大 TLS ClientHello 或 HTTP/2 请求可能在 PPPoE 出口被 IPv6 分片，部分 CDN/中间网络会丢弃分片，表现为：
+
+- 淘宝、天猫、支付宝等页面主体能打开，但订单、购物车、接口数据或部分图片一直加载
+- `ping -6` 正常，普通小页面正常，但某些 HTTPS 接口间歇性超时
+- DNS 已经返回真实国内 IPv4/IPv6，不是 FakeIP 或白名单问题
+
+根因修复是在**前端默认 IPv6 网关**上把 LAN RA MTU 设置为实际 WAN MTU。MikroTik RouterOS 示例：
+
+```routeros
+/interface/print detail where name~"pppoe|bridge"
+/ipv6/nd/print detail
+/ipv6/nd/set [find interface=bridge1] mtu=1492
+/ipv6/nd/print detail where interface=bridge1
+```
+
+如果你的 LAN 接口不是 `bridge1`，请替换成实际接口名；如果 PPPoE MTU 不是 `1492`，请使用 `/interface/print detail` 里 `pppoe-out` 的 `actual-mtu`。改完后，让客户端重新获取 RA：断开/重连 Wi-Fi、重启网卡，或等待下一次 RA。Linux/Alpine 客户端可临时验证：
+
+```bash
+ip link show dev eth0
+curl -6 -m 6 -o /dev/null -w '%{http_code} %{time_total} %{remote_ip}\n' https://h5api.m.taobao.com/
+```
+
+这个设置和公网 IPv6 前缀是否动态无关；前缀变了也仍然适用。
+
 ## TProxy 转发模式
 
 默认按“非网关 TProxy + FakeIP 入口”部署：上游路由器继续做默认网关，只把 FakeIP 或灰名单 CIDR 路由到这台 Alpine LXC。安装器和 UI 生成的 `/etc/sysctl.d/99-sing-box-tproxy.conf` 只保留 TProxy/FakeIP 必需参数，例如 `ip_nonlocal_bind`、`rp_filter` 和当前网卡的 IPv6 RA 接收项，不会默认开启 `net.ipv4.ip_forward` 或 IPv6 forwarding，也不会写入 TCP 队列、缓冲等性能 sysctl，避免容器内参数和 PVE 宿主机上限不一致。

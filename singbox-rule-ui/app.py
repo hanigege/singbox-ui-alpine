@@ -79,8 +79,9 @@ LOCAL_DNS_CHOICES = {
     "dnspod": {"label": "DNSPod", "server": "119.29.29.29", "server_port": 53},
     "alidns": {"label": "AliDNS", "server": "223.5.5.5", "server_port": 53},
     "114dns": {"label": "114 DNS", "server": "114.114.114.114", "server_port": 53},
+    "custom_dns": {"label": "Custom", "server": "manual", "server_port": 53},
 }
-DEFAULT_LOCAL_DNS_CHOICE = "dnspod"
+DEFAULT_LOCAL_DNS_CHOICE = "alidns"
 LOCAL_DNS_BY_SERVER = {item["server"]: key for key, item in LOCAL_DNS_CHOICES.items()}
 DEFAULT_INTERRUPT_EXIST_CONNECTIONS = False
 ENTRY_TYPES = ("domain", "domain_suffix", "domain_keyword", "domain_regex", "ip_cidr")
@@ -690,7 +691,11 @@ def extract_initial_manager_data(config):
             break
     for server in config.get("dns", {}).get("servers", []) or []:
         if isinstance(server, dict) and server.get("tag") == "local-dns":
-            local_dns_choice = LOCAL_DNS_BY_SERVER.get(str(server.get("server", "")).strip(), DEFAULT_LOCAL_DNS_CHOICE)
+            server_addr = str(server.get("server", "")).strip()
+            if server_addr in LOCAL_DNS_BY_SERVER:
+                local_dns_choice = LOCAL_DNS_BY_SERVER[server_addr]
+            else:
+                local_dns_choice = "custom_dns"
             break
     base = json.loads(json.dumps(config))
     base["outbounds"] = []
@@ -717,7 +722,7 @@ def extract_initial_manager_data(config):
             },
             **fakeip,
         },
-        "dns": {"local": local_dns_choice},
+        "dns": {"local": local_dns_choice, "local_custom_server": "223.5.5.5", "local_custom_port": 53},
         "ddns": {"dns": "local"},
     }
     return base, normalize_nodes(nodes), groups
@@ -772,6 +777,8 @@ def load_groups():
     groups["fakeip"]["block_quic"] = True
     if groups["dns"].get("local") not in LOCAL_DNS_CHOICES:
         groups["dns"]["local"] = DEFAULT_LOCAL_DNS_CHOICE
+    groups["dns"].setdefault("local_custom_server", "223.5.5.5")
+    groups["dns"].setdefault("local_custom_port", 53)
     if groups["ddns"].get("dns") not in ("local", "remote"):
         groups["ddns"]["dns"] = "local"
     groups["telegram"].setdefault("capture_ips", True)
@@ -1281,7 +1288,12 @@ def apply_fakeip_settings(config, groups):
     target["inet6_range"] = inet6_range
 
 
-def local_dns_server_config(choice):
+def local_dns_server_config(choice, groups_dns=None):
+    if choice == "custom_dns" and groups_dns:
+        server = json.loads(json.dumps(LOCAL_DNS_SERVER))
+        server["server"] = groups_dns.get("local_custom_server", "223.5.5.5")
+        server["server_port"] = int(groups_dns.get("local_custom_port", 53))
+        return server
     item = LOCAL_DNS_CHOICES.get(choice, LOCAL_DNS_CHOICES[DEFAULT_LOCAL_DNS_CHOICE])
     server = json.loads(json.dumps(LOCAL_DNS_SERVER))
     server["server"] = item["server"]
@@ -1291,8 +1303,9 @@ def local_dns_server_config(choice):
 
 def apply_local_dns_settings(config, groups):
     servers = config.setdefault("dns", {}).setdefault("servers", [])
-    choice = groups.get("dns", {}).get("local", DEFAULT_LOCAL_DNS_CHOICE)
-    desired = local_dns_server_config(choice)
+    groups_dns = groups.get("dns", {})
+    choice = groups_dns.get("local", DEFAULT_LOCAL_DNS_CHOICE)
+    desired = local_dns_server_config(choice, groups_dns)
     target = None
     for server in servers:
         if isinstance(server, dict) and server.get("tag") == "local-dns":
@@ -3014,8 +3027,17 @@ def get_node_delays(test=False):
     return {"available": api_error is None, "error": api_error, "delays": values}
 
 
-def measure_dns_delay(choice, host="www.qq.com"):
-    item = LOCAL_DNS_CHOICES[choice]
+def dns_delay_choice_item(choice, groups_dns=None):
+    item = dict(LOCAL_DNS_CHOICES[choice])
+    if choice == "custom_dns":
+        groups_dns = groups_dns or {}
+        item["server"] = str(groups_dns.get("local_custom_server", "223.5.5.5")).strip() or "223.5.5.5"
+        item["server_port"] = int(groups_dns.get("local_custom_port", 53) or 53)
+    return item
+
+
+def measure_dns_delay(choice, host="www.qq.com", groups_dns=None):
+    item = dns_delay_choice_item(choice, groups_dns)
     started = time.monotonic()
     try:
         answers = query_dns_once(item["server"], item["server_port"], host, 1, timeout=3)
@@ -3043,11 +3065,12 @@ def measure_dns_delay(choice, host="www.qq.com"):
         }
 
 
-def get_dns_delays():
+def get_dns_delays(groups_dns=None):
     # 这里测的是网关机到各国内 DNS 的实际 UDP 查询耗时，供用户手动选择单个 local-dns 上游。
+    groups_dns = groups_dns or load_groups().get("dns", {})
     return {
         "host": "www.qq.com",
-        "items": {choice: measure_dns_delay(choice) for choice in LOCAL_DNS_CHOICES},
+        "items": {choice: measure_dns_delay(choice, groups_dns=groups_dns) for choice in LOCAL_DNS_CHOICES},
     }
 
 
@@ -3104,6 +3127,12 @@ def normalize_payload_groups(raw_groups, nodes=None):
                 raise ValueError(f"Invalid local DNS upstream: {local_dns}")
             # 国内 DNS 上游影响所有直连域名解析，只接受内置候选，避免把错误地址写成“已保存”。
             groups["dns"]["local"] = local_dns
+            if local_dns == "custom_dns":
+                custom_server = str(dns.get("local_custom_server", "")).strip()
+                if custom_server:
+                    groups["dns"]["local_custom_server"] = custom_server
+                custom_port = int(dns.get("local_custom_port", 53))
+                groups["dns"]["local_custom_port"] = custom_port
         ddns = raw_groups.get("ddns")
         if isinstance(ddns, dict):
             mode = str(ddns.get("dns", groups["ddns"].get("dns", "local"))).strip()
@@ -3476,7 +3505,19 @@ class Handler(BaseHTTPRequestHandler):
             if not self.authorized():
                 self.send_error_json("Unauthorized", 401)
                 return
-            self.send_json({"dnsDelays": get_dns_delays()})
+            query = parse_qs(parsed.query)
+            groups_dns = dict(load_groups().get("dns", {}))
+            custom_server = str((query.get("custom_server") or [""])[0]).strip()
+            custom_port = str((query.get("custom_port") or [""])[0]).strip()
+            if custom_server:
+                groups_dns["local_custom_server"] = custom_server
+            if custom_port:
+                try:
+                    groups_dns["local_custom_port"] = int(custom_port)
+                except ValueError:
+                    self.send_error_json("Invalid custom DNS port", 400)
+                    return
+            self.send_json({"dnsDelays": get_dns_delays(groups_dns)})
             return
         if parsed.path.startswith("/api/runtime/"):
             if not self.authorized():

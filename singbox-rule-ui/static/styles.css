@@ -429,7 +429,8 @@ input[type="checkbox"] {
 }
 
 .dns-settings {
-  grid-template-columns: minmax(170px, 1fr) minmax(180px, 240px) minmax(140px, 170px);
+  grid-template-columns: minmax(170px, 1fr) minmax(180px, 240px) minmax(180px, 280px) minmax(140px, 170px);
+  align-items: stretch;
 }
 
 .wide-field {
@@ -485,6 +486,18 @@ input[type="checkbox"] {
   border-radius: 8px;
   background: #ffffff;
   padding: 8px 10px;
+}
+
+.custom-dns-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(82px, 100px);
+  gap: 8px;
+  align-content: end;
+  min-width: 0;
+}
+
+.custom-dns-fields.hidden {
+  display: none;
 }
 
 .match-help {

@@ -212,6 +212,8 @@ const translations = {
     localDnsTitle: "China DNS",
     localDnsNote: "Choose one local-dns upstream. sing-box does not run these in parallel.",
     localDnsUpstream: "Upstream",
+    customDnsServer: "Custom Server",
+    customDnsPort: "Custom Port",
     refreshDnsDelay: "Refresh DNS delay",
     dnsDelayUpdated: "DNS delay updated",
     dnsDelayEmpty: "DNS delay has not been tested",
@@ -489,6 +491,8 @@ const translations = {
     localDnsTitle: "国内 DNS",
     localDnsNote: "为国内直连域名选择一个 local-dns 上游；sing-box 不会并发查询这些 DNS。",
     localDnsUpstream: "上游",
+    customDnsServer: "自定义服务器",
+    customDnsPort: "自定义端口",
     refreshDnsDelay: "刷新 DNS 延时",
     dnsDelayUpdated: "DNS 延时已更新",
     dnsDelayEmpty: "还没有检测 DNS 延时",
@@ -770,6 +774,7 @@ async function refreshMeta() {
 
 async function refreshDnsDelays(options = {}) {
   if (dnsDelayRefreshInFlight) return;
+  if (!$("app").classList.contains("hidden")) syncNodeSettingsFromForm();
   const silent = Boolean(options.silent);
   dnsDelayRefreshInFlight = true;
   if (!silent) {
@@ -778,7 +783,12 @@ async function refreshDnsDelays(options = {}) {
     setStatus(t("refreshDnsDelay"));
   }
   try {
-    const result = await api("/api/dns-delays");
+    const params = new URLSearchParams();
+    const groupsDns = state.groups?.dns || {};
+    if (groupsDns.local_custom_server) params.set("custom_server", groupsDns.local_custom_server);
+    if (groupsDns.local_custom_port) params.set("custom_port", String(groupsDns.local_custom_port));
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    const result = await api(`/api/dns-delays${suffix}`);
     if (result.state) state = result.state;
     dnsDelays = result.dnsDelays?.items || {};
     dnsDelayHost = result.dnsDelays?.host || "";
@@ -1926,8 +1936,16 @@ function dnsChoices() {
 
 function currentLocalDns() {
   state.groups.dns = state.groups.dns || {};
-  if (!state.groups.dns.local || !dnsChoices()[state.groups.dns.local]) state.groups.dns.local = "dnspod";
+  if (!state.groups.dns.local || !dnsChoices()[state.groups.dns.local]) state.groups.dns.local = "alidns";
   return state.groups.dns.local;
+}
+
+function dnsChoiceDisplay(key, item) {
+  if (key !== "custom_dns") return `${item.label} · ${item.server}`;
+  const groupsDns = state.groups?.dns || {};
+  const server = groupsDns.local_custom_server || "223.5.5.5";
+  const port = Number(groupsDns.local_custom_port || 53);
+  return `${item.label} · ${server}${port && port !== 53 ? `:${port}` : ""}`;
 }
 
 function renderLocalDnsSettings() {
@@ -1937,7 +1955,7 @@ function renderLocalDnsSettings() {
   for (const [key, item] of Object.entries(dnsChoices())) {
     const option = document.createElement("option");
     option.value = key;
-    option.textContent = `${item.label} · ${item.server}`;
+    option.textContent = dnsChoiceDisplay(key, item);
     select.appendChild(option);
   }
   select.value = current;
@@ -1953,7 +1971,7 @@ function renderLocalDnsSettings() {
     const row = document.createElement("div");
     row.className = `dns-delay-row ${key === current ? "selected" : ""} ${measured?.ok ? "good" : measured ? "bad" : ""}`;
     const name = document.createElement("strong");
-    name.textContent = `${item.label} · ${item.server}`;
+    name.textContent = dnsChoiceDisplay(key, item);
     const value = document.createElement("span");
     if (!measured) {
       value.textContent = t("dnsDelayEmpty");
@@ -1964,6 +1982,16 @@ function renderLocalDnsSettings() {
     }
     row.append(name, value);
     rows.appendChild(row);
+  }
+  const fields = $("customDnsFields");
+  const serverInput = $("customDnsServer");
+  const portInput = $("customDnsPort");
+  if (current === "custom_dns") {
+    fields.classList.remove("hidden");
+    serverInput.value = (state.groups.dns || {}).local_custom_server || "223.5.5.5";
+    portInput.value = (state.groups.dns || {}).local_custom_port || 53;
+  } else {
+    fields.classList.add("hidden");
   }
 }
 
@@ -2678,7 +2706,9 @@ function syncNodeSettingsFromForm() {
   state.groups.auto.tolerance = Number($("autoTolerance").value || 0);
   state.groups.auto.interrupt_exist_connections = $("interruptConnections").checked;
   state.groups.dns = state.groups.dns || {};
-  state.groups.dns.local = $("localDnsSelect").value || "dnspod";
+  state.groups.dns.local = $("localDnsSelect").value || "alidns";
+  state.groups.dns.local_custom_server = ($("customDnsServer").value || "223.5.5.5").trim();
+  state.groups.dns.local_custom_port = Number($("customDnsPort").value) || 53;
   state.groups.fakeip = state.groups.fakeip || {};
   state.groups.fakeip.inet4_range = $("fakeipV4").value.trim();
   state.groups.fakeip.inet6_range = $("fakeipV6").value.trim();
@@ -2711,6 +2741,10 @@ $("localDnsSelect").addEventListener("change", () => {
   syncNodeSettingsChanged();
   render();
 });
+$("customDnsServer").addEventListener("input", syncNodeSettingsChanged);
+$("customDnsServer").addEventListener("change", syncNodeSettingsChanged);
+$("customDnsPort").addEventListener("input", syncNodeSettingsChanged);
+$("customDnsPort").addEventListener("change", syncNodeSettingsChanged);
 $("refreshDnsDelayBtn").addEventListener("click", refreshDnsDelays);
 $("proxyDefault").addEventListener("change", () => {
   syncNodeSettingsChanged();
