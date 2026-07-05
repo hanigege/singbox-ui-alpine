@@ -1986,10 +1986,10 @@ function renderLocalDnsSettings() {
   const fields = $("customDnsFields");
   const serverInput = $("customDnsServer");
   const portInput = $("customDnsPort");
+  serverInput.value = (state.groups.dns || {}).local_custom_server || "223.5.5.5";
+  portInput.value = (state.groups.dns || {}).local_custom_port || 53;
   if (current === "custom_dns") {
     fields.classList.remove("hidden");
-    serverInput.value = (state.groups.dns || {}).local_custom_server || "223.5.5.5";
-    portInput.value = (state.groups.dns || {}).local_custom_port || 53;
   } else {
     fields.classList.add("hidden");
   }
