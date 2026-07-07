@@ -1861,9 +1861,8 @@ async function importBackupFromFile(event) {
     setStatus(t("backupImported"), "ok");
     window.alert(t("backupImportedAlert"));
     if (result.applyScheduled) {
-      setTimeout(() => {
-        Promise.all([refreshMaintenance(), loadProxyInfo(false)]).then(() => render()).catch(() => {});
-      }, 2500);
+      refreshMaintenance().catch(() => {});
+      pollDelaysAfterImport();
     } else if (!result.delays) loadProxyInfo(false).then(() => render()).catch(() => {});
   } catch (error) {
     finishActionButton("importBackupBtn", "actionFailed", "failed", "importBackup");
@@ -1871,6 +1870,23 @@ async function importBackupFromFile(event) {
   } finally {
     setBusy(false);
   }
+}
+
+async function pollDelaysAfterImport(maxAttempts = 5, interval = 3500) {
+  for (let i = 0; i < maxAttempts; i++) {
+    if (i > 0) await sleep(interval);
+    try {
+      await loadProxyInfo(false);
+      render();
+      const hasDelays = Object.values(delays).some((d) => d?.ok && typeof d.delay === "number");
+      if (hasDelays) return;
+    } catch (e) {}
+  }
+  try {
+    await loadProxyInfo(true);
+    await loadProxyInfo(false);
+    render();
+  } catch (e) {}
 }
 
 function allowedEntryTypes() {
