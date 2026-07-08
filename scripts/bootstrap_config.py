@@ -19,6 +19,9 @@ DEFAULT_FAKE4 = "28.0.0.0/8"
 DEFAULT_FAKE6 = "2001:2::/64"
 DEFAULT_INTERRUPT_EXIST_CONNECTIONS = False
 INITIAL_NODES_FILE = os.environ.get("SING_BOX_INITIAL_NODES_FILE", "")
+# 仓库根目录（bootstrap_config.py 在 scripts/ 下，上溯一层即为仓库根）。
+REPO_DIR = Path(__file__).resolve().parent.parent
+PRESET_RULES_DIR = REPO_DIR / "templates" / "custom-rules"
 
 
 def default_lan_ip():
@@ -264,10 +267,17 @@ def main():
         "dns": {"local": "dnspod"},
         "ddns": {"dns": "local"},
     }
-    for name in ("blacklist", "greylist", "ddns"):
-        write_json(RULE_DIR / f"{name}.json", empty_rule_set())
-    # 初装不预置业务域名白名单；国内域名优先依赖 geosite-cn/geolocation-cn 和本地 DNS。
-    write_json(RULE_DIR / "whitelist.json", empty_rule_set())
+    # 首次安装预置黑白灰名单模板，让新装机即带常用规则，无需手动配置。
+    # 覆盖安装时保留用户已配置的规则，不覆盖；ddns 无模板，创建空规则集。
+    for name in ("whitelist", "blacklist", "greylist", "ddns"):
+        rule_path = RULE_DIR / f"{name}.json"
+        if rule_path.is_file():
+            continue
+        preset_path = PRESET_RULES_DIR / f"{name}.json"
+        if preset_path.is_file():
+            write_json(rule_path, json.loads(preset_path.read_text(encoding="utf-8")))
+        else:
+            write_json(rule_path, empty_rule_set())
     write_json(BASE_CONFIG_PATH, base)
     write_json(NODES_PATH, nodes)
     write_json(GROUPS_PATH, groups)
