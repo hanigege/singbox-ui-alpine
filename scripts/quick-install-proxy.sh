@@ -4,6 +4,7 @@ set -eu
 REPO="${SING_BOX_GATEWAY_REPO:-hanigege/sing-box1.13.13-alpine-ui}"
 REF="${SING_BOX_GATEWAY_REF:-main}"
 ACTION="${1:-install}"
+PROXY_PREFIX="${SING_BOX_GATEWAY_PROXY_PREFIX:-https://ghproxy.net/}"
 
 if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
   echo "缺少 curl/wget，请先安装 curl：apk add --no-cache curl ca-certificates" >&2
@@ -12,7 +13,7 @@ fi
 
 if [ "${SING_BOX_GATEWAY_DRY_RUN:-0}" != "1" ] && [ "$(id -u)" -ne 0 ]; then
   echo "请用 root 权限运行，例如：" >&2
-  echo "  curl -fsSL https://raw.githubusercontent.com/${REPO}/${REF}/scripts/quick-install.sh | sh" >&2
+  echo "  curl -fsSL ${PROXY_PREFIX}https://raw.githubusercontent.com/${REPO}/${REF}/scripts/quick-install-proxy.sh | sh" >&2
   exit 1
 fi
 
@@ -42,9 +43,17 @@ download_first() {
   return 1
 }
 
+download_urls() {
+  url="$1"
+  printf "%s%s\n" "$PROXY_PREFIX" "$url"
+  printf "%s\n" "$url"
+}
+
 echo "正在下载 sing-box1.13.13-alpine-ui ${REPO}@${REF}..."
 archive_url="https://github.com/${REPO}/archive/refs/heads/${REF}.tar.gz"
-download_first "$archive" "$archive_url"
+urls_file="$tmp/urls"
+download_urls "$archive_url" > "$urls_file"
+download_first "$archive" $(cat "$urls_file")
 mkdir -p "$src"
 tar -xzf "$archive" -C "$src" --strip-components=1
 
