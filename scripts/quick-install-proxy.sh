@@ -5,6 +5,7 @@ REPO="${SING_BOX_GATEWAY_REPO:-hanigege/sing-box1.13.13-alpine-ui}"
 REF="${SING_BOX_GATEWAY_REF:-main}"
 ACTION="${1:-install}"
 PROXY_PREFIX="${SING_BOX_GATEWAY_PROXY_PREFIX:-https://ghproxy.net/}"
+PROXY_PREFIXES="${SING_BOX_GATEWAY_PROXY_PREFIXES:-${PROXY_PREFIX},https://gh-proxy.com/,https://gh.llkk.cc/}"
 
 if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
   echo "缺少 curl/wget，请先安装 curl：apk add --no-cache curl ca-certificates" >&2
@@ -45,7 +46,13 @@ download_first() {
 
 download_urls() {
   url="$1"
-  printf "%s%s\n" "$PROXY_PREFIX" "$url"
+  old_ifs="$IFS"
+  IFS=","
+  for prefix in $PROXY_PREFIXES; do
+    [ -n "$prefix" ] || continue
+    printf "%s%s\n" "$prefix" "$url"
+  done
+  IFS="$old_ifs"
   printf "%s\n" "$url"
 }
 

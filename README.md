@@ -45,7 +45,8 @@ curl -fsSL https://raw.githubusercontent.com/hanigege/sing-box1.13.13-alpine-ui/
 
 ```sh
 # 入口二：ghproxy.net 反代（境内或 GitHub 直连不稳定的机器）
-# 脚本内部归档下载也走 ghproxy.net 反代，整个链路一致。
+# 脚本内置 ghproxy.net、gh-proxy.com、gh.llkk.cc 多级镜像加速
+# 和直连回退（压缩包下载和分流规则更新均有多镜像兜底）。
 curl -fsSL https://ghproxy.net/https://raw.githubusercontent.com/hanigege/sing-box1.13.13-alpine-ui/main/scripts/quick-install-proxy.sh | sh
 ```
 
