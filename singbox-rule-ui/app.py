@@ -2779,7 +2779,11 @@ def config_health_summary(ok, route_order_ok, fakeip_route_ok, mtu, route_final,
     ):
         return {"level": "great", "tone": "good", "reasons": []}
     if ok:
-        return {"level": "normal", "tone": "good", "reasons": []}
+        great_reasons = []
+        if str(mtu) != "1492":
+            great_reasons.append("mtu_not_ideal")
+        # 未来新增"状态极佳"级别检查项时，在此追加条件即可
+        return {"level": "normal", "tone": "soft", "reasons": great_reasons}
     return {"level": "problem", "tone": "warn", "reasons": reasons}
 
 

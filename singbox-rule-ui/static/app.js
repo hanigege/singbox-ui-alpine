@@ -158,6 +158,7 @@ const translations = {
     configHealthReasonFakeipRoute: "FakeIP route is missing",
     configHealthReasonLocalDns: "local DNS is missing",
     configHealthReasonRouteFinal: "fallback route is not direct",
+    configHealthReasonMtuNotIdeal: "MTU is not standard 1492",
     activeLocalDns: "Active local DNS",
     activeFakeip: "Active FakeIP",
     routeFinal: "Fallback route",
@@ -456,6 +457,7 @@ const translations = {
     configHealthReasonFakeipRoute: "FakeIP 路由缺失",
     configHealthReasonLocalDns: "本地 DNS 缺失",
     configHealthReasonRouteFinal: "兜底出口不是 direct",
+    configHealthReasonMtuNotIdeal: "MTU 非标准值 1492",
     activeLocalDns: "当前本地 DNS",
     activeFakeip: "当前 FakeIP",
     routeFinal: "兜底出口",
@@ -1179,7 +1181,12 @@ function formatFakeipStatus(item) {
 function formatHealthSummary(summary) {
   const level = summary?.level || "problem";
   if (level === "great") return t("configHealthGreat");
-  if (level === "normal") return t("configHealthNormal");
+  if (level === "normal") {
+    const reasons = (summary?.reasons || [])
+      .map((reason) => t(`configHealthReason${reason.split("_").map((part) => part[0].toUpperCase() + part.slice(1)).join("")}`))
+      .filter(Boolean);
+    return reasons.length ? `${t("configHealthNormal")}（${reasons.join("、")}）` : t("configHealthNormal");
+  }
   const reasons = (summary?.reasons || [])
     .map((reason) => t(`configHealthReason${reason.split("_").map((part) => part[0].toUpperCase() + part.slice(1)).join("")}`))
     .filter(Boolean);

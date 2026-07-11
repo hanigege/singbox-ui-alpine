@@ -1235,6 +1235,11 @@ input[type="checkbox"] {
   background: linear-gradient(180deg, rgba(255, 59, 48, 0.1) 0%, rgba(255, 59, 48, 0.045) 100%);
 }
 
+.health-summary-banner.soft {
+  border-color: rgba(23, 107, 135, 0.30);
+  background: linear-gradient(180deg, rgba(23, 107, 135, 0.1) 0%, rgba(23, 107, 135, 0.045) 100%);
+}
+
 .health-summary-marker {
   width: 12px;
   height: 42px;
@@ -1251,6 +1256,11 @@ input[type="checkbox"] {
 .health-summary-banner.bad .health-summary-marker {
   background: var(--danger);
   box-shadow: 0 0 0 4px rgba(255, 59, 48, 0.12);
+}
+
+.health-summary-banner.soft .health-summary-marker {
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(23, 107, 135, 0.12);
 }
 
 .health-summary-banner div {
@@ -1280,6 +1290,10 @@ input[type="checkbox"] {
 
 .health-summary-banner.bad strong {
   color: var(--danger);
+}
+
+.health-summary-banner.soft strong {
+  color: var(--accent);
 }
 
 .maintenance-overview-grid {
