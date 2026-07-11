@@ -17,7 +17,7 @@
 - TProxy 自动检测默认网卡、本机网段和 IPv6 前缀
 - 节点服务器 IP 自动加入 TProxy bypass，避免代理链路被透明代理套住
 - Telegram 官方 IP 捕获列表支持在线更新和手动校验编辑
-- LAN 侧 TCP/UDP 53 会被重定向到 sing-box DNS，降低 IPv4/IPv6 明文 DNS 泄漏
+- LAN 侧 DNS 指向本机时，sing-box 监听 53 端口处理 DNS 查询，降低 IPv4/IPv6 明文 DNS 泄漏
 - 安装器默认不改 `/etc/resolv.conf`，不把宿主机 DNS 指向本机，不启用 `radvd`
 - 安装器默认不调整 TCP/UDP 性能 sysctl，内核调参由管理员按实际链路手动决定
 - 规则更新由 Alpine `crond` 管理，运行状态自愈每 2 分钟检查一次
@@ -39,9 +39,9 @@
 curl -fsSL https://raw.githubusercontent.com/hanigege/sing-box1.13.13-alpine-ui/main/scripts/quick-install.sh | sh
 ```
 
-安装器内置 `gh-proxy.com`、`gh.llkk.cc` 等代理加速和直连回退，并自动安装 Alpine 依赖：`bash`、`curl`、`ca-certificates`、`tar`、`gzip`、`python3`、`nftables`、`iproute2`、`rsync`、`util-linux`、`coreutils`、`openrc`。仓库内置的 `sing-box` 是从官方 `v1.13.13` 标签构建的 Alpine/musl 静态二进制，不需要 `gcompat`。卸载时默认保留 apk 包，避免连带移除系统基础依赖。
+安装器内置 `gh-proxy.com`、`gh.llkk.cc` 等代理加速和直连回退（压缩包下载和分流规则更新均有多镜像兜底），并自动安装 Alpine 依赖：`bash`、`curl`、`ca-certificates`、`tar`、`gzip`、`python3`、`nftables`、`iproute2`、`rsync`、`util-linux`、`coreutils`、`openrc`。仓库内置的 `sing-box` 是从官方 `v1.13.13` 标签构建的 Alpine/musl 静态二进制，不需要 `gcompat`。卸载时默认保留 apk 包，避免连带移除系统基础依赖。
 
-如需指定架构：
+如需指定架构（仅 Git 安装方式）：
 
 ```bash
 SING_BOX_ARCH=arm64 bash scripts/install.sh
@@ -316,11 +316,12 @@ cd sing-box1.13.13-alpine-ui
 bash scripts/install.sh
 ```
 
-本地卸载：
+本地卸载（交互式确认，静默模式加 `--yes`）：
 
 ```bash
-bash scripts/install.sh uninstall
-bash scripts/install.sh purge
+bash scripts/install.sh uninstall        # 标准卸载，有确认提示
+bash scripts/install.sh uninstall --yes  # 静默卸载
+bash scripts/install.sh purge --yes      # 静默强制删除 /usr/local/bin/sing-box
 ```
 
 ## 安全
