@@ -35,11 +35,19 @@
 
 ## 一键安装
 
+提供两个并行的安装入口，任选一个即可：
+
 ```sh
+# 入口一：直连 GitHub（推荐，海外或能直连 GitHub raw 的机器）
 curl -fsSL https://raw.githubusercontent.com/hanigege/sing-box1.13.13-alpine-ui/main/scripts/quick-install.sh | sh
 ```
 
-安装器内置 `gh-proxy.com`、`gh.llkk.cc` 等代理加速和直连回退（压缩包下载和分流规则更新均有多镜像兜底），并自动安装 Alpine 依赖：`bash`、`curl`、`ca-certificates`、`tar`、`gzip`、`python3`、`nftables`、`iproute2`、`rsync`、`util-linux`、`coreutils`、`openrc`。仓库内置的 `sing-box` 是从官方 `v1.13.13` 标签构建的 Alpine/musl 静态二进制，不需要 `gcompat`。卸载时默认保留 apk 包，避免连带移除系统基础依赖。
+```sh
+# 入口二：ghproxy.net 反代（境内或 GitHub 直连不稳定的机器）
+curl -fsSL https://ghproxy.net/https://raw.githubusercontent.com/hanigege/sing-box1.13.13-alpine-ui/main/scripts/quick-install.sh | sh
+```
+
+两个入口下载的是同一个脚本。安装器内置 `ghproxy.net`、`gh-proxy.com`、`gh.llkk.cc` 等多级镜像加速和直连回退（压缩包下载和分流规则更新均有多镜像兜底），自动安装 Alpine 依赖：`bash`、`curl`、`ca-certificates`、`tar`、`gzip`、`python3`、`nftables`、`iproute2`、`rsync`、`util-linux`、`coreutils`、`openrc`。仓库内置的 `sing-box` 是从官方 `v1.13.13` 标签构建的 Alpine/musl 静态二进制，不需要 `gcompat`。卸载时默认保留 apk 包，避免连带移除系统基础依赖。
 
 如需指定架构（仅 Git 安装方式）：
 

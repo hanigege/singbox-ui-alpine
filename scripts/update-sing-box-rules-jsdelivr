@@ -36,6 +36,7 @@ cleanup() {
 trap cleanup EXIT
 
 DEFAULT_RAW_MIRRORS=(
+  "https://ghproxy.net/https://raw.githubusercontent.com"
   "https://raw.githubusercontent.com"
   "https://gh-proxy.com/https://raw.githubusercontent.com"
   "https://gh.llkk.cc/https://raw.githubusercontent.com"
@@ -65,6 +66,8 @@ BACKUP_DIR="$TMP_DIR/backup"
 NEW_DIR="$TMP_DIR/new"
 mkdir -p "$BACKUP_DIR" "$NEW_DIR"
 DEFAULT_TELEGRAM_CIDR_SOURCES=(
+  "https://ghproxy.net/https://core.telegram.org/resources/cidr.txt"
+  "https://ghproxy.net/https://raw.githubusercontent.com/fernvenue/telegram-cidr-list/master/CIDR.txt"
   "https://core.telegram.org/resources/cidr.txt"
   "https://raw.githubusercontent.com/fernvenue/telegram-cidr-list/master/CIDR.txt"
 )
