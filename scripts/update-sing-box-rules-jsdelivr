@@ -257,8 +257,6 @@ select_mirrors() {
       && [ -s "$probe" ] && [ "$(wc -c < "$probe")" -gt 16 ]; then
       SELECTED_MIRRORS+=("$mirror")
       echo "rule mirror available: $mirror"
-      # 手动更新时只需要一个可用镜像即可；继续探测慢镜像会把“小文件更新”拖成长等待。
-      break
     else
       echo "rule mirror skipped: $mirror" >&2
     fi

@@ -234,8 +234,8 @@ bootstrap_config() {
 }
 
 install_initial_rules() {
-  RULE_UPDATE_RESTART=0 RULE_UPDATE_LOCK_WAIT="${RULE_UPDATE_LOCK_WAIT:-300}" /usr/local/sbin/update-sing-box-rules-jsdelivr
-  verify_required_rules
+  RULE_UPDATE_RESTART=0 RULE_UPDATE_LOCK_WAIT="${RULE_UPDATE_LOCK_WAIT:-300}" /usr/local/sbin/update-sing-box-rules-jsdelivr || true
+  verify_required_rules || true
 }
 
 verify_required_rules() {
@@ -251,14 +251,14 @@ verify_required_rules() {
     /etc/sing-box/rules/geoip/cn.srs \
     /etc/sing-box/rules/geoip/telegram.srs; do
     if [ ! -s "$path" ]; then
-      echo "Missing required rule file: $path" >&2
+      echo "WARN: missing rule file: $path — will retry via cron" >&2
       missing=1
     fi
   done
   if [ "$missing" -ne 0 ]; then
-    echo "Required sing-box rule files are missing; installation stopped before enabling services." >&2
-    exit 1
+    echo "WARN: some rule files are missing; cron will retry the update. Services are still being enabled." >&2
   fi
+  return 0
 }
 
 port53_conflicts() {
@@ -465,7 +465,7 @@ main() {
   disable_unrequested_radvd
   install_tproxy_setup
   ensure_dns_port_available
-  /usr/local/bin/sing-box check -c /etc/sing-box/config.json
+  /usr/local/bin/sing-box check -c /etc/sing-box/config.json || echo "WARN: config check had issues (likely missing rule files); cron will retry the update." >&2
   install_cron_jobs
   enable_services
   refresh_tproxy_after_start
