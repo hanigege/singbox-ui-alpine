@@ -38,7 +38,7 @@
 推荐使用反代入口：
 
 ```sh
-curl -fsSL https://scg.jgaga.tk/https://raw.githubusercontent.com/hanigege/sing-box1.13.13-alpine-ui/main/scripts/quick-install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/hanigege/sing-box1.13.13-alpine-ui/main/scripts/quick-install.sh | sh
 ```
 
 如果当前机器直连 GitHub 稳定，也可以使用官方入口：
