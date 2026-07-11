@@ -111,6 +111,8 @@ DEFAULT_TELEGRAM_PROXY_IPV6 = (
     "2a0a:f280::/32",
 )
 DEFAULT_TELEGRAM_CIDR_SOURCES = (
+    "https://ghproxy.net/https://core.telegram.org/resources/cidr.txt",
+    "https://ghproxy.net/https://raw.githubusercontent.com/fernvenue/telegram-cidr-list/master/CIDR.txt",
     "https://core.telegram.org/resources/cidr.txt",
     "https://raw.githubusercontent.com/fernvenue/telegram-cidr-list/master/CIDR.txt",
 )
