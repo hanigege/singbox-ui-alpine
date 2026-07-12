@@ -437,6 +437,45 @@ restart_openrc_service() {
   return 1
 }
 
+ensure_mtu_standard() {
+  local iface current
+  iface="$(ip -4 route show default 2>/dev/null | awk '/default/ { print $5; exit }')"
+  [ -z "$iface" ] && { echo "No default route — skip MTU adjustment."; return 0; }
+  current="$(cat "/sys/class/net/$iface/mtu" 2>/dev/null || echo "1500")"
+  [ "$current" = "1492" ] && { echo "$iface MTU already 1492 — no change needed."; return 0; }
+  echo "Detected $iface MTU=$current — adjusting to standard value 1492..."
+  if ip link set dev "$iface" mtu 1492 2>/dev/null; then
+    echo "  MTU adjusted immediately: $current → 1492"
+  else
+    echo "  WARN: could not adjust MTU immediately (will retry at boot)." >&2
+  fi
+  # Persist across reboot via OpenRC local.d
+  local lscript="/etc/local.d/set-mtu-$iface.start"
+  cat > "$lscript" <<-LOCALEOF
+#!/bin/sh
+ip link set dev $iface mtu 1492
+LOCALEOF
+  chmod +x "$lscript"
+  rc-update add local boot 2>/dev/null || true
+  echo "  Persisted via $lscript (local service enabled at boot)."
+}
+
+pre_upgrade_cleanup() {
+  # 停止旧服务、清理旧文件，确保新版本文件覆盖不受残留影响。
+  # 原则：不炸网络（不删 nftables/路由）、不阻断安装（全部 || true）。
+  echo "Stopping existing services for clean upgrade..."
+  for s in singbox-rule-ui sing-box sing-box-tproxy; do
+    rc-service "$s" stop >/dev/null 2>&1 || true
+  done
+  # 移除旧版 init.d 脚本（install_files 会重新装新的）
+  rm -f /etc/init.d/sing-box /etc/init.d/sing-box-tproxy /etc/init.d/singbox-rule-ui
+  # 清理旧的 local.d MTU 持久化脚本（ensure_mtu_standard 会重新生成）
+  rm -f /etc/local.d/set-mtu-*.start
+  # 清理旧 sysctl 和 logrotate 配置（后续步骤会重新生成）
+  rm -f /etc/sysctl.d/99-sing-box-tproxy.conf "$LOGROTATE_CONFIG"
+  echo "Cleanup done."
+}
+
 main() {
   case "${1:-install}" in
     install|"") ;;
@@ -457,6 +496,7 @@ main() {
   record_preinstall_state
   choose_sing_box_runtime
   install_packages
+  pre_upgrade_cleanup
   install_files
   install_logrotate_config
   bootstrap_config
@@ -469,11 +509,11 @@ main() {
   install_cron_jobs
   enable_services
   refresh_tproxy_after_start
+  ensure_mtu_standard
   echo
   echo "Installed on Alpine/OpenRC."
   echo "Host resolver was left unchanged. Configure client/router resolver manually if needed."
   echo "IPv6 PPPoE note: set the upstream router LAN RA MTU to the PPPoE actual MTU, usually 1492."
-  echo "If this Alpine host still shows MTU 1500, verify with: ip link set dev eth0 mtu 1492"
   echo "RouterOS example: /ipv6/nd/set [find interface=bridge1] mtu=1492"
   sing-box-gateway-info
 }

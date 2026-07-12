@@ -149,6 +149,7 @@ const translations = {
     configHealthOk: "No duplicate managed rules",
     configHealthWarn: "Duplicate or excessive managed rules detected",
     configHealthSummary: "Health summary",
+    configHealthTierNote: "Tiers: Excellent · Normal · Problem",
     configHealthGreat: "Excellent",
     configHealthNormal: "Running normally",
     configHealthProblem: "Problem found",
@@ -448,6 +449,7 @@ const translations = {
     configHealthOk: "未发现重复受管理规则",
     configHealthWarn: "发现重复或过量受管理规则",
     configHealthSummary: "健康总评",
+    configHealthTierNote: "三级：状态极佳 · 运行正常 · 发现问题",
     configHealthGreat: "状态极佳",
     configHealthNormal: "运行正常",
     configHealthProblem: "发现问题",
@@ -1163,7 +1165,10 @@ function renderHealthSummaryBanner(configHealth) {
   label.textContent = t("configHealthSummary");
   const value = document.createElement("strong");
   value.textContent = formatHealthSummary(summary);
-  body.append(label, value);
+  const note = document.createElement("div");
+  note.className = "health-summary-tier-note";
+  note.textContent = t("configHealthTierNote");
+  body.append(label, value, note);
   banner.append(marker, body);
   return banner;
 }
