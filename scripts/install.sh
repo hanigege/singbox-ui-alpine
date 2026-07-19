@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SING_BOX_BUNDLED_VERSION="${SING_BOX_BUNDLED_VERSION:-1.13.13}"
+SING_BOX_BUNDLED_VERSION="${SING_BOX_BUNDLED_VERSION:-1.13.14}"
 SING_BOX_ARCH="${SING_BOX_ARCH:-auto}"
 INSTALL_DIR="/opt/singbox-rule-ui"
 CONFIG_DIR="/etc/sing-box"
@@ -183,7 +183,7 @@ install_sing_box() {
       return
     fi
     backup="/usr/local/bin/sing-box.bak-gateway-$(date +%Y%m%d-%H%M%S)"
-    # 固定验证 1.13.13；已有其它版本先备份再替换，避免配置语法和二进制版本错配。
+    # 固定验证 1.13.14；已有其它版本先备份再替换，避免配置语法和二进制版本错配。
     cp -a /usr/local/bin/sing-box "$backup"
     echo "Backed up existing sing-box to $backup"
     state_set sing_box_binary replaced
