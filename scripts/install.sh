@@ -17,7 +17,7 @@ RULE_UPDATE_CRON_MARKER_BEGIN="# BEGIN sing-box-gateway-ui rule update"
 RULE_UPDATE_CRON_MARKER_END="# END sing-box-gateway-ui rule update"
 MONITOR_CRON_MARKER_BEGIN="# BEGIN sing-box-gateway-ui runtime monitor"
 MONITOR_CRON_MARKER_END="# END sing-box-gateway-ui runtime monitor"
-APK_PACKAGES=(bash curl ca-certificates tar gzip python3 nftables iproute2 rsync util-linux coreutils openrc logrotate)
+APK_PACKAGES=(bash curl ca-certificates tar gzip python3 nftables iproute2 rsync util-linux coreutils openrc logrotate gcompat iputils)
 
 need_root() {
   if [ "$(id -u)" -ne 0 ]; then
@@ -437,27 +437,60 @@ restart_openrc_service() {
   return 1
 }
 
+detect_optimal_mtu() {
+  local gw="$1"
+  # Probe path MTU to gateway with DF bit (requires iputils ping)
+  # TCP payload = MTU - 40 (20B IP + 20B TCP), ICMP payload = MTU - 28 (20B IP + 8B ICMP)
+  for mtu in 1500 1492 1464 1440 1400; do
+    if ping -c 1 -M do -s "$((mtu - 28))" -W 2 "$gw" >/dev/null 2>&1; then
+      echo "$mtu"
+      return 0
+    fi
+  done
+  echo "1500"  # fallback
+}
+
 ensure_mtu_standard() {
-  local iface current
+  local iface current detected mtu_script
   iface="$(ip -4 route show default 2>/dev/null | awk '/default/ { print $5; exit }')"
   [ -z "$iface" ] && { echo "No default route — skip MTU adjustment."; return 0; }
   current="$(cat "/sys/class/net/$iface/mtu" 2>/dev/null || echo "1500")"
-  [ "$current" = "1492" ] && { echo "$iface MTU already 1492 — no change needed."; return 0; }
-  echo "Detected $iface MTU=$current — adjusting to standard value 1492..."
-  if ip link set dev "$iface" mtu 1492 2>/dev/null; then
-    echo "  MTU adjusted immediately: $current → 1492"
+
+  # 用户可通过环境变量 SING_BOX_MTU 强制指定
+  if [ -n "${SING_BOX_MTU:-}" ]; then
+    detected="$SING_BOX_MTU"
+    echo "Using SING_BOX_MTU=$detected (from environment)."
+  elif [ "$current" -gt 1500 ]; then
+    # 虚拟接口 MTU 异常高（如 65536），探测路径最优 MTU
+    echo "Detected $iface MTU=$current (unusually high) — probing optimal MTU..."
+    detected="$(detect_optimal_mtu "$(ip -4 route show default | awk '/default/ { print $3; exit }')")"
+  elif command -v ping >/dev/null && ping -c 1 -M do -s 1472 -W 2 "$(ip -4 route show default | awk '/default/ { print $3; exit }')" >/dev/null 2>&1; then
+    # 快速检测：1500 能直达网关 → 保持当前 MTU
+    echo "$iface MTU $current — path MTU 1500 validated, no change needed."
+    return 0
+  else
+    # 1500 不通 → 路径上有小 MTU 链路（如 PPPoE），自动探测最佳值
+    echo "$iface MTU $current — probing path MTU (likely PPPoE)..."
+    detected="$(detect_optimal_mtu "$(ip -4 route show default | awk '/default/ { print $3; exit }')")"
+  fi
+
+  [ "$current" = "$detected" ] && { echo "$iface MTU already $detected — no change needed."; return 0; }
+
+  echo "Adjusting $iface MTU: $current → $detected"
+  if ip link set dev "$iface" mtu "$detected" 2>/dev/null; then
+    echo "  MTU adjusted immediately."
   else
     echo "  WARN: could not adjust MTU immediately (will retry at boot)." >&2
   fi
   # Persist across reboot via OpenRC local.d
-  local lscript="/etc/local.d/set-mtu-$iface.start"
-  cat > "$lscript" <<-LOCALEOF
+  mtu_script="/etc/local.d/set-mtu-$iface.start"
+  cat > "$mtu_script" <<-LOCALEOF
 #!/bin/sh
-ip link set dev $iface mtu 1492
+ip link set dev $iface mtu $detected
 LOCALEOF
-  chmod +x "$lscript"
+  chmod +x "$mtu_script"
   rc-update add local boot 2>/dev/null || true
-  echo "  Persisted via $lscript (local service enabled at boot)."
+  echo "  Persisted via $mtu_script (local service enabled at boot)."
 }
 
 setup_performance_qdisc() {
@@ -573,8 +606,7 @@ main() {
   echo
   echo "Installed on Alpine/OpenRC."
   echo "Host resolver was left unchanged. Configure client/router resolver manually if needed."
-  echo "IPv6 PPPoE note: set the upstream router LAN RA MTU to the PPPoE actual MTU, usually 1492."
-  echo "RouterOS example: /ipv6/nd/set [find interface=bridge1] mtu=1492"
+  echo "Interface MTU was auto-detected; set via SING_BOX_MTU env var to override."
   sing-box-gateway-info
 }
 
