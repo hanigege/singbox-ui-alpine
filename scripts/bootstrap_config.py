@@ -216,7 +216,9 @@ def base_config(lan_ip, ui_secret, fake4, fake6, ipv6_dns_listen):
                 # 测速流量会主动打满带宽，默认直连，避免压垮代理节点影响游戏和实时业务。
                 {"rule_set": ["geosite-speedtest"], "outbound": "direct"},
                 # Telegram 客户端可能直接连接官方 IP 段，域名和 IP 规则都要在 FakeIP 捕获前送代理。
-                {"rule_set": ["geosite-telegram", "geoip-telegram"], "outbound": "Proxy"},
+                # 拆成两条 OR 规则而非 AND：裸 IP 连接没有域名，AND 会导致规则失败掉到 direct。
+                {"rule_set": "geosite-telegram", "outbound": "Proxy"},
+                {"rule_set": "geoip-telegram", "outbound": "Proxy"},
                 {"ip_cidr": [fake4, fake6], "outbound": "Proxy"},
                 {"ip_is_private": True, "outbound": "direct"},
                 {"rule_set": ["geosite-geolocation-!cn"], "outbound": "Proxy"},

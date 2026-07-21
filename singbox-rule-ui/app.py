@@ -1041,7 +1041,12 @@ def apply_direct_speedtest_route(config):
 
 def apply_direct_telegram_route(config):
     rules = config.setdefault("route", {}).setdefault("rules", [])
-    telegram_rule = {"rule_set": ["geosite-telegram", "geoip-telegram"], "outbound": "Proxy"}
+    # 拆成两条 OR 规则而非 AND：域名匹配和 IP 匹配各自生效。
+    # 裸 IP 连接没有域名，AND 会导致 geosite 匹配不上整条规则失败掉到 direct。
+    telegram_rules = [
+        {"rule_set": "geosite-telegram", "outbound": "Proxy"},
+        {"rule_set": "geoip-telegram", "outbound": "Proxy"},
+    ]
     cleaned = []
     for rule in rules:
         if not isinstance(rule, dict):
@@ -1076,7 +1081,8 @@ def apply_direct_telegram_route(config):
         if isinstance(rule, dict) and rule.get("rule_set") == "geosite-speedtest":
             insert_at = index + 1
     # Telegram 客户端常直接连接官方 IP 段，必须在 FakeIP 捕获和 UDP/443 阻断前先送代理。
-    rules.insert(insert_at, telegram_rule)
+    for tr in reversed(telegram_rules):
+        rules.insert(insert_at, tr)
 
 
 def apply_fakeip_route_rule(config, groups):
