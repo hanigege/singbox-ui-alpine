@@ -111,8 +111,8 @@ DEFAULT_TELEGRAM_PROXY_IPV6 = (
     "2a0a:f280::/32",
 )
 DEFAULT_TELEGRAM_CIDR_SOURCES = (
-    "https://ghproxy.net/https://core.telegram.org/resources/cidr.txt",
-    "https://ghproxy.net/https://raw.githubusercontent.com/fernvenue/telegram-cidr-list/master/CIDR.txt",
+    "https://scg.jgaga.tk/https://core.telegram.org/resources/cidr.txt",
+    "https://scg.jgaga.tk/https://raw.githubusercontent.com/fernvenue/telegram-cidr-list/master/CIDR.txt",
     "https://core.telegram.org/resources/cidr.txt",
     "https://raw.githubusercontent.com/fernvenue/telegram-cidr-list/master/CIDR.txt",
 )
@@ -776,6 +776,8 @@ def load_groups():
     groups.setdefault("dns", {})
     groups.setdefault("ddns", {})
     groups.setdefault("telegram", {})
+    groups.setdefault("socks5", {})
+    groups["socks5"].setdefault("port", 0)
     groups["proxy"].setdefault("default", "Auto")
     groups["proxy"].setdefault("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS)
     # 默认保护游戏/语音等长连接；用户可在 UI 高级开关里明确选择切换时中断旧连接。
@@ -1208,6 +1210,22 @@ def apply_portable_listeners(config):
         config["inbounds"] = kept_inbounds
     if ipv6_listen and not any(isinstance(item, dict) and item.get("tag") == "dns-in-v6" for item in kept_inbounds):
         config.setdefault("inbounds", []).append({"type": "direct", "tag": "dns-in-v6", "listen": ipv6_listen, "listen_port": 53})
+    socks5_port = int(load_groups().get("socks5", {}).get("port", 0) or 0)
+    existing_socks5 = [i for i in config.get("inbounds", []) if isinstance(i, dict) and i.get("type") == "socks"]
+    if socks5_port > 0 and socks5_port <= 65535:
+        if existing_socks5:
+            existing_socks5[0]["listen_port"] = socks5_port
+            existing_socks5[0]["listen"] = "::"
+        else:
+            config.setdefault("inbounds", []).append({
+                "type": "socks",
+                "tag": "socks-in",
+                "listen": "::",
+                "listen_port": socks5_port,
+                "sniff": False,
+            })
+    elif existing_socks5:
+        config["inbounds"] = [i for i in config.get("inbounds", []) if not (isinstance(i, dict) and i.get("type") == "socks")]
         add_inbound_tag(config, "dns-in-v6")
     clash = config.setdefault("experimental", {}).setdefault("clash_api", {})
     controller = str(clash.get("external_controller", "")).strip()
@@ -3285,6 +3303,10 @@ def normalize_payload_groups(raw_groups, nodes=None):
         if isinstance(telegram, dict):
             # Telegram 官方 IP 捕获是长期兼容开关：默认开启，允许高级用户在不需要时显式关闭。
             groups["telegram"]["capture_ips"] = normalize_bool(telegram.get("capture_ips", groups["telegram"].get("capture_ips", True)))
+        socks5 = raw_groups.get("socks5")
+        if isinstance(socks5, dict):
+            port = int(socks5.get("port", groups["socks5"].get("port", 0)))
+            groups["socks5"]["port"] = max(0, min(port, 65535))
     return groups
 
 

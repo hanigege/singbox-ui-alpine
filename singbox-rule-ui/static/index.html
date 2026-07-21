@@ -166,6 +166,17 @@
             </div>
           </section>
 
+          <section class="compact-settings socks5-settings" aria-label="SOCKS5 inbound">
+            <div>
+              <h3 data-i18n="socks5Title">SOCKS5</h3>
+              <p data-i18n="socks5Note">Enable a SOCKS5 inbound for LAN clients. Set port 0 to disable.</p>
+            </div>
+            <label>
+              <span data-i18n="socks5Port">Port</span>
+              <input id="socks5Port" type="number" min="0" max="65535" step="1" value="0" placeholder="1080" />
+            </label>
+          </section>
+
           <form id="nodeForm" class="node-form">
             <select id="nodeType" aria-label="Node type">
               <option value="hysteria2">Hysteria2</option>

@@ -255,6 +255,9 @@ const translations = {
     fakeipQuicPolicy: "FakeIP QUIC protection is always on",
     fakeipQuicPolicyHelp: "UDP/443 to FakeIP ranges is blocked so browsers fall back to TCP, reducing QUIC long connections that can occupy proxy bandwidth and connection tracking. Real game and voice UDP are not affected.",
     telegramCaptureIps: "Proxy Telegram official IP ranges",
+    socks5Title: "SOCKS5",
+    socks5Note: "Enable SOCKS5 inbound for LAN clients. Port 0 disables it.",
+    socks5Port: "SOCKS5 Port",
     telegramPolicy: "Telegram IP capture",
     telegramPolicyHelp: "Telegram clients may connect to official IPs directly. This keeps those explicit service ranges in TProxy without capturing all public IP traffic.",
     editingNode: "Editing node",
@@ -555,6 +558,9 @@ const translations = {
     fakeipQuicPolicy: "FakeIP QUIC 保护固定开启",
     fakeipQuicPolicyHelp: "系统会固定拦截发往 FakeIP 网段的 UDP/443，让浏览器回落到 TCP，减少 QUIC 长连接占满代理带宽和连接表；真实游戏/语音 UDP 不受影响。",
     telegramCaptureIps: "代理 Telegram 官方 IP 网段",
+    socks5Title: "SOCKS5",
+    socks5Note: "为局域网客户端启用 SOCKS5 入站代理。设置 0 关闭。",
+    socks5Port: "SOCKS5 端口",
     telegramPolicy: "Telegram IP 捕获",
     telegramPolicyHelp: "Telegram 客户端可能直接连接官方 IP。开启后只把这些明确服务网段加入 TProxy，不扩大到全部公网 IP。",
     editingNode: "正在编辑节点",
@@ -2131,6 +2137,8 @@ function renderNodes() {
   if (document.activeElement !== $("fakeipV6")) $("fakeipV6").value = state.groups.fakeip.inet6_range || "2001:2::/64";
   $("fakeipIpv6Enabled").checked = state.groups.fakeip.ipv6_enabled !== false;
   $("telegramCaptureIps").checked = state.groups.telegram.capture_ips !== false;
+  state.groups.socks5 = state.groups.socks5 || {};
+  if (document.activeElement !== $("socks5Port")) $("socks5Port").value = state.groups.socks5.port || 0;
   $("nodeTitle").textContent = t("nodes");
   $("nodeSummary").textContent = editingNodeTag
     ? `${t("editingNode")}: ${editingNodeTag}`
@@ -2828,6 +2836,8 @@ function syncNodeSettingsFromForm() {
   state.groups.fakeip.ipv6_enabled = $("fakeipIpv6Enabled").checked;
   state.groups.fakeip.block_quic = true;
   state.groups.telegram = state.groups.telegram || {};
+  state.groups.socks5 = state.groups.socks5 || {};
+  state.groups.socks5.port = Number($("socks5Port").value || 0);
   state.groups.telegram.capture_ips = $("telegramCaptureIps").checked;
   state.groups.proxy = state.groups.proxy || {};
   state.groups.proxy.interrupt_exist_connections = $("interruptConnections").checked;
@@ -2846,7 +2856,7 @@ function syncDraftSettings() {
   syncNodeSettingsFromForm();
 }
 
-["autoUrl", "autoInterval", "autoTolerance", "interruptConnections", "fakeipV4", "fakeipV6", "fakeipIpv6Enabled", "telegramCaptureIps"].forEach((id) => {
+["autoUrl", "autoInterval", "autoTolerance", "interruptConnections", "fakeipV4", "fakeipV6", "fakeipIpv6Enabled", "telegramCaptureIps", "socks5Port"].forEach((id) => {
   $(id).addEventListener("input", syncNodeSettingsChanged);
   $(id).addEventListener("change", syncNodeSettingsChanged);
 });
