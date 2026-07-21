@@ -460,6 +460,65 @@ LOCALEOF
   echo "  Persisted via $lscript (local service enabled at boot)."
 }
 
+setup_performance_qdisc() {
+  local iface conf_line_conflict
+  echo "=== TCP 性能优化 (tcp_notsent_lowat + fq qdisc) ==="
+
+  # sysctl: tcp_notsent_lowat — 无副作用，无条件启用
+  if grep -qs '^net.ipv4.tcp_notsent_lowat' /etc/sysctl.d/98-sing-box-performance.conf 2>/dev/null; then
+    echo "  tcp_notsent_lowat 已配置，跳过."
+  else
+    # 确保 sysctl 文件存在
+    mkdir -p /etc/sysctl.d
+    if [ ! -f /etc/sysctl.d/98-sing-box-performance.conf ]; then
+      cat > /etc/sysctl.d/98-sing-box-performance.conf << 'EOF'
+# sing-box gateway 性能参数
+net.ipv4.tcp_congestion_control = bbr
+net.ipv4.tcp_rmem = 4096 131072 67108864
+net.ipv4.tcp_wmem = 4096 65536 67108864
+net.ipv4.tcp_slow_start_after_idle = 0
+EOF
+    fi
+    # 检查是否因上次失败的 sysctl 写入了不完整的行
+    conf_line_conflict=$(grep -cs '^net.core.default_qdisc' /etc/sysctl.d/98-sing-box-performance.conf || true)
+    if [ "$conf_line_conflict" -gt 0 ]; then
+      # 移除可能不支持的 default_qdisc（Alpine 某些内核不支持）
+      sed -i '/^net.core.default_qdisc/d' /etc/sysctl.d/98-sing-box-performance.conf
+      echo "  清理了不兼容的 default_qdisc 配置行."
+    fi
+    echo "net.ipv4.tcp_notsent_lowat = 131072" >> /etc/sysctl.d/98-sing-box-performance.conf
+    echo "  tcp_notsent_lowat=131072 已写入 sysctl.d."
+  fi
+  sysctl -p /etc/sysctl.d/98-sing-box-performance.conf 2>/dev/null || \
+    sysctl -e -p /etc/sysctl.d/98-sing-box-performance.conf 2>/dev/null || true
+  echo "  当前 tcp_notsent_lowat=$(sysctl -n net.ipv4.tcp_notsent_lowat 2>/dev/null || echo 'N/A')"
+
+  # tc qdisc: fq — 条件启用，需要内核支持
+  iface="$(ip -4 route show default 2>/dev/null | awk '/default/ { print $5; exit }')"
+  if [ -z "$iface" ]; then
+    echo "  ⚠ 未检测到 IPv4 默认路由，跳过 fq qdisc 配置."
+    return 0
+  fi
+  if tc qdisc show dev "$iface" 2>/dev/null | grep -q 'fq'; then
+    echo "  fq qdisc 已在 $iface 上生效，跳过."
+  elif tc qdisc replace dev "$iface" root fq 2>/dev/null; then
+    echo "  ✓ fq qdisc 已附加到 $iface"
+    # 持久化
+    local lscript="/etc/local.d/singbox-qdisc.start"
+    cat > "$lscript" <<-LOCALEOF
+#!/bin/sh
+# sing-box gateway: 确保 $iface 上启用 fq qdisc（BBR pacing）
+[ -x /sbin/tc ] || [ -x /usr/sbin/tc ] || exit 0
+/sbin/tc qdisc replace dev $iface root fq 2>/dev/null || /usr/sbin/tc qdisc replace dev $iface root fq 2>/dev/null || true
+LOCALEOF
+    chmod +x "$lscript"
+    rc-update add local boot 2>/dev/null || true
+    echo "  已持久化到 $lscript"
+  else
+    echo "  ⚠ 内核不支持 fq qdisc，跳过 (BBR 使用软件 pacing)."
+  fi
+}
+
 pre_upgrade_cleanup() {
   # 停止旧服务、清理旧文件，确保新版本文件覆盖不受残留影响。
   # 原则：不炸网络（不删 nftables/路由）、不阻断安装（全部 || true）。
@@ -510,6 +569,7 @@ main() {
   enable_services
   refresh_tproxy_after_start
   ensure_mtu_standard
+  setup_performance_qdisc
   echo
   echo "Installed on Alpine/OpenRC."
   echo "Host resolver was left unchanged. Configure client/router resolver manually if needed."
