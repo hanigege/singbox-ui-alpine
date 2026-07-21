@@ -462,7 +462,7 @@ const translations = {
     configHealthReasonFakeipRoute: "FakeIP 路由缺失",
     configHealthReasonLocalDns: "本地 DNS 缺失",
     configHealthReasonRouteFinal: "兜底出口不是 direct",
-    configHealthReasonMtuNotIdeal: "MTU 非标准值",
+    configHealthReasonMtuNotIdeal: "MTU 非标准值（预期 1500 或 1492）",
     activeLocalDns: "当前本地 DNS",
     activeFakeip: "当前 FakeIP",
     routeFinal: "兜底出口",
