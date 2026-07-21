@@ -2386,6 +2386,7 @@ function toggleNode(tag, enabled) {
   }
   markChanged();
   render();
+  save(true);
 }
 
 async function refreshDelays() {
@@ -2625,7 +2626,7 @@ function renderListTextarea(items) {
   }
 }
 
-async function save() {
+async function save(silent = false) {
   syncDraftSettings();
   if (!dirty) {
     setStatus(t("noChanges"));
@@ -2653,7 +2654,7 @@ async function save() {
       setStatus(`${t("savedAndRestarted")}；${t("tproxySyncFailed")}`, "bad");
     } else {
       setStatus(`${t("savedAndRestarted")}；${t("delayUpdated")}`, "ok");
-      window.alert(t("savedAlert"));
+      if (!silent) window.alert(t("savedAlert"));
     }
   } catch (error) {
     setStatus(error.message || t("changesBlocked"), "bad");
@@ -2777,7 +2778,7 @@ $("nodeTransportMode").addEventListener("change", () => {
 $("nodeCancel").addEventListener("click", clearNodeForm);
 $("searchInput").addEventListener("input", render);
 $("typeInput").addEventListener("change", updateValueHint);
-$("saveBtn").addEventListener("click", save);
+$("saveBtn").addEventListener("click", () => save());
 $("logoutBtn").addEventListener("click", logout);
 $("refreshDelayBtn").addEventListener("click", refreshDelays);
 $("refreshMaintenanceBtn").addEventListener("click", refreshMaintenance);
