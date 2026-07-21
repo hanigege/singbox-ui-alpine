@@ -159,7 +159,7 @@ const translations = {
     configHealthReasonFakeipRoute: "FakeIP route is missing",
     configHealthReasonLocalDns: "local DNS is missing",
     configHealthReasonRouteFinal: "fallback route is not direct",
-    configHealthReasonMtuNotIdeal: "MTU is not standard 1492",
+    configHealthReasonMtuNotIdeal: "MTU is not standard (expected 1500 or 1492)",
     activeLocalDns: "Active local DNS",
     activeFakeip: "Active FakeIP",
     routeFinal: "Fallback route",
@@ -462,7 +462,7 @@ const translations = {
     configHealthReasonFakeipRoute: "FakeIP 路由缺失",
     configHealthReasonLocalDns: "本地 DNS 缺失",
     configHealthReasonRouteFinal: "兜底出口不是 direct",
-    configHealthReasonMtuNotIdeal: "MTU 非标准值 1492",
+    configHealthReasonMtuNotIdeal: "MTU 非标准值",
     activeLocalDns: "当前本地 DNS",
     activeFakeip: "当前 FakeIP",
     routeFinal: "兜底出口",
@@ -1334,7 +1334,7 @@ function renderMaintenance() {
   const updateResult = rule.result || rule.serviceState;
 
   const overview = renderMaintenanceOverview([
-    [t("interfaceMtu"), configHealth.interfaceMtu || t("unknown"), String(configHealth.interfaceMtu) === "1492" ? "good compact" : "soft compact"],
+    [t("interfaceMtu"), configHealth.interfaceMtu || t("unknown"), String(configHealth.interfaceMtu) === "1492" || String(configHealth.interfaceMtu) === "1500" ? "good compact" : "soft compact"],
     [t("updateResult"), updateResult, statusTone(updateResult)],
     [t("nextUpdate"), rule.next, rule.next ? "good compact" : ""],
   ]);
@@ -1364,7 +1364,7 @@ function renderMaintenance() {
     [t("fakeipRouteStatus"), configHealth.fakeipRouteOk === false ? t("fakeipRouteWarn") : t("fakeipRouteOk"), configHealth.fakeipRouteOk === false ? "warn" : "good"],
     [t("routeOrderStatus"), configHealth.routeOrderOk === false ? t("routeOrderWarn") : t("routeOrderOk"), configHealth.routeOrderOk === false ? "warn" : "good"],
     [t("routeFinal"), configHealth.routeFinal || t("unknown"), configHealth.routeFinal === "direct" ? "good" : "warn"],
-    [t("interfaceMtu"), configHealth.interfaceMtu || t("unknown"), String(configHealth.interfaceMtu) === "1492" ? "good" : "soft"],
+    [t("interfaceMtu"), configHealth.interfaceMtu || t("unknown"), String(configHealth.interfaceMtu) === "1492" || String(configHealth.interfaceMtu) === "1500" ? "good" : "soft"],
     [t("routeRuleCount"), configHealth.routeRules ?? 0],
     [t("dnsRuleCount"), configHealth.dnsRules ?? 0],
     [t("ruleSetCount"), configHealth.ruleSets ?? 0],
