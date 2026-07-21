@@ -727,6 +727,7 @@ def extract_initial_manager_data(config):
             "interval": (auto or {}).get("interval", "30s"),
             "tolerance": (auto or {}).get("tolerance", 50),
             "interrupt_exist_connections": (auto or {}).get("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS),
+            "fallback": (auto or {}).get("fallback", None),
         },
         "direct": direct or {"type": "direct", "tag": "direct"},
         "block": block or {"type": "block", "tag": "block"},
@@ -788,6 +789,8 @@ def load_groups():
     groups["auto"].setdefault("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS)
     # urltest 默认只影响新连接；需要快速脱离坏节点时，用户可以手动开启中断旧连接。
     groups["auto"]["interrupt_exist_connections"] = normalize_bool(groups["auto"]["interrupt_exist_connections"])
+    if "fallback" not in groups["auto"]:
+        groups["auto"]["fallback"] = None
     groups["fakeip"].setdefault("tag", "fakeip-dns")
     groups["fakeip"].setdefault("inet4_range", "28.0.0.0/8")
     groups["fakeip"].setdefault("inet6_range", "2001:2::/64")
@@ -868,11 +871,14 @@ def render_config(nodes=None, groups=None, rule_dir=RULE_DIR, normalized_lists=N
         "interrupt_exist_connections": normalize_bool(
             groups.get("auto", {}).get("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS)
         ),
+        "fallback": groups.get("auto", {}).get("fallback", None),
     }
     direct = groups.get("direct") or {"type": "direct", "tag": "direct"}
     block = groups.get("block") or {"type": "block", "tag": "block"}
     config["outbounds"] = [proxy, auto, *[node["outbound"] for node in nodes if node.get("enabled", True)], direct, block]
     prune_managed_outbound_references(config, tags)
+    # reF1nd: 启用 Unified Delay，测速延时只计第二次 HTTP 请求（排除 TCP/TLS 握手），面板显示更真实
+    config.setdefault("experimental", {})["urltest_unified_delay"] = True
     return config
 
 
@@ -3271,6 +3277,11 @@ def normalize_payload_groups(raw_groups, nodes=None):
             groups["auto"]["interrupt_exist_connections"] = normalize_bool(
                 auto.get("interrupt_exist_connections", groups["auto"].get("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS))
             )
+            fb = auto.get("fallback", groups["auto"].get("fallback", None))
+            if fb is not None and isinstance(fb, dict):
+                groups["auto"]["fallback"] = fb
+            else:
+                groups["auto"]["fallback"] = None
         fakeip = raw_groups.get("fakeip")
         if isinstance(fakeip, dict):
             groups["fakeip"]["inet4_range"] = normalize_cidr(
