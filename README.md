@@ -40,14 +40,14 @@
 ```sh
 # 入口一：直连 GitHub（推荐，海外或能直连 GitHub raw 的机器）
 # 脚本内部所有下载也保持直连，无任何反代层。
-curl -fsSL https://raw.githubusercontent.com/hanigege/singbox-ui-alpine/main/scripts/quick-install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/hanigege/singbox-ui-alpine/stock-1.13.14/scripts/quick-install.sh | sh
 ```
 
 ```sh
 # 入口二：ghproxy.net 反代（境内或 GitHub 直连不稳定的机器）
 # 脚本内置 ghproxy.net、gh-proxy.com、gh.llkk.cc 多级镜像加速
 # 和直连回退（压缩包下载和分流规则更新均有多镜像兜底）。
-curl -fsSL https://ghproxy.net/https://raw.githubusercontent.com/hanigege/singbox-ui-alpine/main/scripts/quick-install-proxy.sh | sh
+curl -fsSL https://ghproxy.net/https://raw.githubusercontent.com/hanigege/singbox-ui-alpine/stock-1.13.14/scripts/quick-install-proxy.sh | sh
 ```
 
 安装器自动安装 Alpine 依赖：`bash`、`curl`、`ca-certificates`、`tar`、`gzip`、`python3`、`nftables`、`iproute2`、`rsync`、`util-linux`、`coreutils`、`openrc`。仓库内置的 `sing-box` 是从官方 `v1.13.14` 标签构建的 Alpine/musl 静态二进制，不需要 `gcompat`。卸载时默认保留 apk 包，避免连带移除系统基础依赖。
