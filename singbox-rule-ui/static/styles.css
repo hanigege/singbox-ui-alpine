@@ -440,7 +440,7 @@ input[type="checkbox"] {
 }
 /* Interval, Tolerance, MaxDelay — narrow for short values */
 .auto-settings label:not(.switch-field):not(.wide-field) {
-  flex: 0 1 110px;
+  flex: 0 1 80px;
 }
 .auto-settings > div:first-child {
   flex: none;
