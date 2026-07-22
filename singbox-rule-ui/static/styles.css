@@ -472,7 +472,9 @@ input[type="checkbox"] {
   align-items: stretch;
 }
 .dns-settings > div:first-child {
-  /* sits in col 1 as the title */
+  display: flex;
+  align-items: center;
+  min-height: 36px;
 }
 .dns-note {
   grid-column: 1 / -1;
@@ -486,7 +488,7 @@ input[type="checkbox"] {
 #refreshDnsDelayBtn {
   min-height: 30px;
   padding: 0 10px;
-  align-self: start;
+  align-self: center;
   white-space: nowrap;
 }
 #dnsDelayRows {
