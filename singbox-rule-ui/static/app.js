@@ -227,6 +227,7 @@ const translations = {
     autoTitle: "Auto",
     autoNote: "Fallback protection skips nodes exceeding max delay. When disabled, Auto picks the best node directly.",
     autoUrl: "Test URL",
+    autoInterval: "Interval",
     autoFallbackProtect: "Fallback protection",
     autoFallbackMaxDelay: "Max delay",
     interruptConnections: "Interrupt old connections",
@@ -530,6 +531,7 @@ const translations = {
     autoTitle: "Auto 自动选择",
     autoNote: "回退保护跳过超过最大延迟的节点。关闭时 Auto 直接选最快节点。",
     autoUrl: "测速链接",
+    autoInterval: "检测间隔",
     autoFallbackProtect: "回退保护",
     autoFallbackMaxDelay: "最大延迟",
     interruptConnections: "切换时中断旧连接",
@@ -2128,6 +2130,7 @@ function renderNodes() {
   state.groups.fakeip = state.groups.fakeip || {};
   state.groups.telegram = state.groups.telegram || {};
   if (document.activeElement !== $("autoUrl")) $("autoUrl").value = state.groups.auto.url || "https://www.gstatic.com/generate_204";
+  if (document.activeElement !== $("autoInterval")) $("autoInterval").value = state.groups.auto.interval || "30s";
   // Fallback protection: show/hide max_delay
   const fallbackCfg = state.groups.auto.fallback;
   const fallbackEnabled = fallbackCfg && fallbackCfg.enabled === true;
@@ -2833,6 +2836,7 @@ function markChanged() {
 function syncNodeSettingsFromForm() {
   state.groups.auto = state.groups.auto || {};
   state.groups.auto.url = $("autoUrl").value.trim();
+  state.groups.auto.interval = $("autoInterval").value.trim();
   const fallbackEnabled = $("autoFallbackEnabled").checked;
   if (fallbackEnabled) {
     const maxDelay = $("autoFallbackMaxDelay").value.trim() || "400ms";
@@ -2871,7 +2875,7 @@ function syncDraftSettings() {
   syncNodeSettingsFromForm();
 }
 
-["autoUrl", "interruptConnections", "fakeipV4", "fakeipV6", "fakeipIpv6Enabled", "telegramCaptureIps", "socks5Port"].forEach((id) => {
+["autoUrl", "autoInterval", "interruptConnections", "fakeipV4", "fakeipV6", "fakeipIpv6Enabled", "telegramCaptureIps", "socks5Port"].forEach((id) => {
   $(id).addEventListener("input", syncNodeSettingsChanged);
   $(id).addEventListener("change", syncNodeSettingsChanged);
 });
