@@ -3297,14 +3297,15 @@ def normalize_payload_groups(raw_groups, nodes=None):
             local_dns = str(dns.get("local", groups["dns"].get("local", DEFAULT_LOCAL_DNS_CHOICE))).strip()
             if local_dns not in LOCAL_DNS_CHOICES:
                 raise ValueError(f"Invalid local DNS upstream: {local_dns}")
-            # 国内 DNS 上游影响所有直连域名解析，只接受内置候选，避免把错误地址写成“已保存”。
+            # 国内 DNS 上游影响所有直连域名解析，只接受内置候选，避免把错误地址写成"已保存"。
             groups["dns"]["local"] = local_dns
-            if local_dns == "custom_dns":
-                custom_server = str(dns.get("local_custom_server", "")).strip()
-                if custom_server:
-                    groups["dns"]["local_custom_server"] = custom_server
-                custom_port = int(dns.get("local_custom_port", 53))
-                groups["dns"]["local_custom_port"] = custom_port
+            # 无条件恢复 local_custom_server/port，即使当前 local 不是 custom_dns：
+            # 导出备份始终包含这两个字段，用户期望导入后与导出完全一致，不受 local 选择影响。
+            custom_server = str(dns.get("local_custom_server", "")).strip()
+            if custom_server:
+                groups["dns"]["local_custom_server"] = custom_server
+            custom_port = int(dns.get("local_custom_port", 53))
+            groups["dns"]["local_custom_port"] = custom_port
         ddns = raw_groups.get("ddns")
         if isinstance(ddns, dict):
             mode = str(ddns.get("dns", groups["ddns"].get("dns", "local"))).strip()
