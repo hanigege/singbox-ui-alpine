@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SING_BOX_BUNDLED_VERSION="${SING_BOX_BUNDLED_VERSION:-1.14.0-alpha.48-reF1nd}"
+SING_BOX_BUNDLED_VERSION="${SING_BOX_BUNDLED_VERSION:-1.13.14}"
 SING_BOX_ARCH="${SING_BOX_ARCH:-auto}"
 INSTALL_DIR="/opt/singbox-rule-ui"
 CONFIG_DIR="/etc/sing-box"
@@ -139,7 +139,7 @@ detect_arch() {
   fi
   case "$arch" in
     x86_64|amd64) echo "amd64" ;;
-    aarch64|arm64) echo "Unsupported architecture: $arch — reF1nd binary only available for amd64. See third_party/sing-box/ for available builds." >&2; exit 1 ;;
+    aarch64|arm64) echo "arm64" ;;
     *) echo "Unsupported architecture: $arch" >&2; exit 1 ;;
   esac
 }
@@ -151,13 +151,26 @@ choose_sing_box_runtime() {
 }
 
 install_sing_box() {
-  local arch singbox_dir binary tmp current_version backup
+  local arch archive sums archive_name expected actual tmp current_version backup
   arch="$(detect_arch)"
-  singbox_dir="$PROJECT_DIR/third_party/sing-box/v${SING_BOX_BUNDLED_VERSION}"
-  binary="$singbox_dir/sing-box-ref1nd-linux-${arch}"
-  if [ ! -r "$binary" ]; then
-    echo "Bundled reF1nd sing-box binary not found: $binary" >&2
+  archive="$PROJECT_DIR/third_party/sing-box/v${SING_BOX_BUNDLED_VERSION}/sing-box-${SING_BOX_BUNDLED_VERSION}-linux-${arch}.tar.gz"
+  sums="$PROJECT_DIR/third_party/sing-box/v${SING_BOX_BUNDLED_VERSION}/SHA256SUMS"
+  if [ ! -r "$archive" ]; then
+    echo "Bundled sing-box archive not found: $archive" >&2
     exit 1
+  fi
+  if [ -r "$sums" ]; then
+    archive_name="$(basename "$archive")"
+    expected="$(awk -v name="$archive_name" '$2 == name { print $1 }' "$sums")"
+    if [ -z "$expected" ]; then
+      echo "No checksum entry for bundled archive: $archive_name" >&2
+      exit 1
+    fi
+    actual="$(sha256sum "$archive" | awk '{ print $1 }')"
+    if [ "$actual" != "$expected" ]; then
+      echo "Checksum mismatch for bundled archive: $archive_name" >&2
+      exit 1
+    fi
   fi
   tmp="$(mktemp -d)"
   trap "rm -rf '$tmp'" EXIT
@@ -170,6 +183,7 @@ install_sing_box() {
       return
     fi
     backup="/usr/local/bin/sing-box.bak-gateway-$(date +%Y%m%d-%H%M%S)"
+    # 固定验证 1.13.14；已有其它版本先备份再替换，避免配置语法和二进制版本错配。
     cp -a /usr/local/bin/sing-box "$backup"
     echo "Backed up existing sing-box to $backup"
     state_set sing_box_binary replaced
@@ -177,8 +191,9 @@ install_sing_box() {
   else
     state_set sing_box_binary installed
   fi
-  echo "Installing bundled reF1nd sing-box ${SING_BOX_BUNDLED_VERSION} (${arch})"
-  install -m 0755 "$binary" /usr/local/bin/sing-box
+  echo "Installing bundled sing-box ${SING_BOX_BUNDLED_VERSION} (${arch})"
+  tar -xzf "$archive" -C "$tmp"
+  install -m 0755 "$tmp"/sing-box-*/sing-box /usr/local/bin/sing-box
   state_set sing_box_bundled_version "$SING_BOX_BUNDLED_VERSION"
 }
 

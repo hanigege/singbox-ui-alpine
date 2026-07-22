@@ -225,11 +225,10 @@ const translations = {
     testingDelay: "Testing node delay",
     delayUpdated: "Delay updated",
     autoTitle: "Auto",
-    autoNote: "Fallback protection skips nodes exceeding max delay. When disabled, Auto picks the best node directly.",
+    autoNote: "Urltest selects the lowest-latency node within tolerance.",
     autoUrl: "Test URL",
     autoInterval: "Interval",
-    autoFallbackProtect: "Fallback protection",
-    autoFallbackMaxDelay: "Max delay",
+    autoTolerance: "Tolerance",
     interruptConnections: "Interrupt old connections",
     localDnsTitle: "China DNS",
     localDnsNote: "Choose one local-dns upstream. sing-box does not run these in parallel.",
@@ -529,11 +528,10 @@ const translations = {
     testingDelay: "正在检测节点延迟",
     delayUpdated: "延迟已更新",
     autoTitle: "Auto 自动选择",
-    autoNote: "回退保护跳过超过最大延迟的节点。关闭时 Auto 直接选最快节点。",
+    autoNote: "按测速链接和容差从可用节点里自动选择",
     autoUrl: "测速链接",
     autoInterval: "检测间隔",
-    autoFallbackProtect: "回退保护",
-    autoFallbackMaxDelay: "最大延迟",
+    autoTolerance: "容差",
     interruptConnections: "切换时中断旧连接",
     localDnsTitle: "国内 DNS",
     localDnsNote: "为国内直连域名选择一个 local-dns 上游；sing-box 不会并发查询这些 DNS。",
@@ -2131,13 +2129,7 @@ function renderNodes() {
   state.groups.telegram = state.groups.telegram || {};
   if (document.activeElement !== $("autoUrl")) $("autoUrl").value = state.groups.auto.url || "https://www.gstatic.com/generate_204";
   if (document.activeElement !== $("autoInterval")) $("autoInterval").value = state.groups.auto.interval || "30s";
-  // Fallback protection: show/hide max_delay
-  const fallbackCfg = state.groups.auto.fallback;
-  const fallbackEnabled = fallbackCfg && fallbackCfg.enabled === true;
-  $("autoFallbackEnabled").checked = fallbackEnabled;
-  const maxDelayVal = (fallbackCfg && fallbackCfg.max_delay) || "";
-  if (document.activeElement !== $("autoFallbackMaxDelay")) $("autoFallbackMaxDelay").value = maxDelayVal;
-  $("autoFallbackDelayGroup").classList.toggle("hidden", !fallbackEnabled);
+  if (document.activeElement !== $("autoTolerance")) $("autoTolerance").value = state.groups.auto.tolerance ?? 50;
   $("interruptConnections").checked =
     state.groups.proxy.interrupt_exist_connections === true || state.groups.auto.interrupt_exist_connections === true;
   renderLocalDnsSettings();
@@ -2795,11 +2787,6 @@ $("nodeCancel").addEventListener("click", clearNodeForm);
 $("searchInput").addEventListener("input", render);
 $("typeInput").addEventListener("change", updateValueHint);
 $("saveBtn").addEventListener("click", () => save());
-// Fallback toggle: show/hide max_delay
-$("autoFallbackEnabled").addEventListener("change", function() {
-  $("autoFallbackDelayGroup").classList.toggle("hidden", !this.checked);
-  markChanged();
-});
 $("logoutBtn").addEventListener("click", logout);
 $("refreshDelayBtn").addEventListener("click", refreshDelays);
 $("refreshMaintenanceBtn").addEventListener("click", refreshMaintenance);
@@ -2837,13 +2824,7 @@ function syncNodeSettingsFromForm() {
   state.groups.auto = state.groups.auto || {};
   state.groups.auto.url = $("autoUrl").value.trim();
   state.groups.auto.interval = $("autoInterval").value.trim();
-  const fallbackEnabled = $("autoFallbackEnabled").checked;
-  if (fallbackEnabled) {
-    const maxDelay = $("autoFallbackMaxDelay").value.trim() || "400ms";
-    state.groups.auto.fallback = { enabled: true, max_delay: maxDelay };
-  } else {
-    state.groups.auto.fallback = { enabled: false };
-  }
+  state.groups.auto.tolerance = Number($("autoTolerance").value || 0);
   state.groups.auto.interrupt_exist_connections = $("interruptConnections").checked;
   state.groups.dns = state.groups.dns || {};
   state.groups.dns.local = $("localDnsSelect").value || "alidns";
@@ -2875,7 +2856,7 @@ function syncDraftSettings() {
   syncNodeSettingsFromForm();
 }
 
-["autoUrl", "autoInterval", "interruptConnections", "fakeipV4", "fakeipV6", "fakeipIpv6Enabled", "telegramCaptureIps", "socks5Port"].forEach((id) => {
+["autoUrl", "autoInterval", "autoTolerance", "interruptConnections", "fakeipV4", "fakeipV6", "fakeipIpv6Enabled", "telegramCaptureIps", "socks5Port"].forEach((id) => {
   $(id).addEventListener("input", syncNodeSettingsChanged);
   $(id).addEventListener("change", syncNodeSettingsChanged);
 });

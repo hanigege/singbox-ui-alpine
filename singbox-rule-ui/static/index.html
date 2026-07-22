@@ -102,13 +102,9 @@
               <span data-i18n="autoInterval">Interval</span>
               <input id="autoInterval" type="text" autocomplete="off" placeholder="30s" />
             </label>
-            <label class="switch-field">
-              <span data-i18n="autoFallbackProtect">Fallback protection</span>
-              <input id="autoFallbackEnabled" type="checkbox" />
-            </label>
-            <label id="autoFallbackDelayGroup" class="hidden">
-              <span data-i18n="autoFallbackMaxDelay">Max delay</span>
-              <input id="autoFallbackMaxDelay" type="text" placeholder="400ms" />
+            <label>
+              <span data-i18n="autoTolerance">Tolerance</span>
+              <input id="autoTolerance" type="number" min="0" step="1" placeholder="50" />
             </label>
             <label class="switch-field">
               <span data-i18n="interruptConnections">Interrupt old connections</span>
@@ -119,6 +115,7 @@
           <section class="compact-settings dns-settings" aria-label="Local DNS settings">
             <div>
               <h3 data-i18n="localDnsTitle">Local DNS</h3>
+              <p data-i18n="localDnsNote">Choose one upstream for direct China domains.</p>
             </div>
             <label>
               <span data-i18n="localDnsUpstream">Upstream</span>
@@ -135,7 +132,6 @@
               </label>
             </div>
             <button id="refreshDnsDelayBtn" class="secondary-btn" type="button" data-i18n="refreshDnsDelay">Refresh DNS delay</button>
-            <p class="dns-note" data-i18n="localDnsNote">Choose one upstream for direct China domains. sing-box does not run these in parallel.</p>
             <div id="dnsDelayRows" class="dns-delay-rows wide-field"></div>
           </section>
 

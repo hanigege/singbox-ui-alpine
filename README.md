@@ -1,12 +1,15 @@
-# sing-box-alpine-ui (reF1nd fork)
+# sing-box1.13.14-alpine-ui
 
-> **醒目说明：本 Alpine 网关仓库固定使用 `reF1nd/sing-box v1.14.0-alpha.48-reF1nd`，包含 urltest fallback、Unified Delay 等增强特性，不支持上游官方 sing-box 二进制替换。**
+> **醒目说明：本 Alpine 小白网关仓库固定使用 `sing-box 1.13.14` 正式版，不使用 latest 或上游自动升级版本。**
 
+这是从 `hanigege/sing-box1.13.13-gateway-ui` 迁移出的 Alpine/OpenRC 版本，面向旁路代理/旁路网关场景，集成 `sing-box`、TProxy、分流规则自动更新、规则管理 UI 和受 token 保护的运行状态面板。
+
+设计目标是：**高效、简洁、sing-box 不死、Alpine 下可预估零维护**。所有配置保存、规则更新和 TProxy 同步都先检查、可回滚；安装器不改宿主机 DNS，不写公共 DNS，不启用 IPv6 RA 广播，避免把旁路机变成不可预期的默认网关。
 
 ## 功能
 
 - 一键安装 `sing-box` 二进制、OpenRC 服务、TProxy、crond 定时任务和 Web UI
-- 默认使用仓库内置的 reF1nd 增强版 `sing-box v1.14.0-alpha.48-reF1nd`（amd64），支持 urltest fallback、Unified Delay 等特性
+- 默认使用仓库内置并校验过的 Alpine/musl 静态构建版 `sing-box 1.13.14`，包含 `amd64` 和 `arm64`
 - 9091 规则 UI 管理白名单、黑名单、灰名单、DDNS、代理节点、实时连接、日志和运行规则
 - 保存前执行 `sing-box check`，失败不覆盖正式配置；规则和主配置使用原子替换
 - 重启失败自动回滚上一份可用配置，优先保证正在运行的 `sing-box` 可恢复
@@ -22,10 +25,11 @@
 
 ## 支持系统
 
-当前安装器只面向 Alpine Linux + OpenRC，仅支持 amd64 架构（reF1nd 只提供 amd64 二进制）：
+当前安装器只面向 Alpine Linux + OpenRC：
 
 - Alpine 3.19+
 - `x86_64/amd64`
+- `aarch64/arm64`
 
 需要 root 权限。不要在 Debian/Ubuntu 上使用这个仓库；Debian/Ubuntu 请继续用原 systemd 版本。
 
@@ -36,14 +40,14 @@
 ```sh
 # 入口一：直连 GitHub（推荐，海外或能直连 GitHub raw 的机器）
 # 脚本内部所有下载也保持直连，无任何反代层。
-curl -fsSL https://raw.githubusercontent.com/hanigege/singbox-ui-alpine/main/scripts/quick-install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/hanigege/sing-box1.13.13-alpine-ui/main/scripts/quick-install.sh | sh
 ```
 
 ```sh
 # 入口二：ghproxy.net 反代（境内或 GitHub 直连不稳定的机器）
 # 脚本内置 ghproxy.net、gh-proxy.com、gh.llkk.cc 多级镜像加速
 # 和直连回退（压缩包下载和分流规则更新均有多镜像兜底）。
-curl -fsSL https://ghproxy.net/https://raw.githubusercontent.com/hanigege/singbox-ui-alpine/main/scripts/quick-install-proxy.sh | sh
+curl -fsSL https://ghproxy.net/https://raw.githubusercontent.com/hanigege/sing-box1.13.13-alpine-ui/main/scripts/quick-install-proxy.sh | sh
 ```
 
 ## 官方版可以从下面的链接安装 {官方 sing-box 1.13.14（原版）}
@@ -55,6 +59,8 @@ curl -fsSL https://raw.githubusercontent.com/hanigege/singbox-ui-alpine/stock-1.
 curl -fsSL https://ghproxy.net/https://raw.githubusercontent.com/hanigege/singbox-ui-alpine/stock-1.13.14/scripts/quick-install-proxy.sh | sh
 ```
 安装器自动安装 Alpine 依赖：`bash`、`curl`、`ca-certificates`、`tar`、`gzip`、`python3`、`nftables`、`iproute2`、`rsync`、`util-linux`、`coreutils`、`openrc`。仓库内置的 `sing-box` 是 reF1nd 增强版 `v1.14.0-alpha.48-reF1nd` 静态二进制，不再需要 `gcompat`。卸载时默认保留 apk 包，避免连带移除系统基础依赖。
+
+
 
 如果安装在 Proxmox VE 的 Alpine LXC 里，一键安装只负责容器内的 sing-box、TProxy、OpenRC 和 Rule UI，不会改 PVE 宿主机配置，也不能替你写 `/etc/pve/lxc/<CTID>.conf`。高并发或高带宽场景建议安装后继续看下面的“Proxmox VE / LXC 可选优化”。
 
@@ -320,8 +326,8 @@ SING_BOX_GATEWAY_REMOVE_DEPS=1 /usr/local/bin/sing-box-gateway-uninstall --yes
 
 ```bash
 apk add --no-cache bash curl ca-certificates
-git clone https://github.com/hanigege/singbox-ui-alpine.git
-cd singbox-ui-alpine
+git clone https://github.com/hanigege/sing-box1.13.13-alpine-ui.git
+cd sing-box1.13.13-alpine-ui
 bash scripts/install.sh
 ```
 

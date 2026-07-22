@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-REPO="${SING_BOX_GATEWAY_REPO:-hanigege/singbox-ui-alpine}"
+REPO="${SING_BOX_GATEWAY_REPO:-hanigege/sing-box1.13.13-alpine-ui}"
 REF="${SING_BOX_GATEWAY_REF:-main}"
 ACTION="${1:-install}"
 
@@ -42,7 +42,7 @@ download_first() {
   return 1
 }
 
-echo "正在下载 singbox-ui-alpine ${REPO}@${REF}..."
+echo "正在下载 sing-box1.13.13-alpine-ui ${REPO}@${REF}..."
 archive_url="https://github.com/${REPO}/archive/refs/heads/${REF}.tar.gz"
 download_first "$archive" "$archive_url"
 mkdir -p "$src"
