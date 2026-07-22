@@ -151,37 +151,13 @@ choose_sing_box_runtime() {
 }
 
 install_sing_box() {
-  local arch singbox_dir raw_binary tarball archive is_tarball sums archive_name expected actual tmp current_version backup
+  local arch singbox_dir binary tmp current_version backup
   arch="$(detect_arch)"
   singbox_dir="$PROJECT_DIR/third_party/sing-box/v${SING_BOX_BUNDLED_VERSION}"
-  # reF1nd 是直二进制，stock 是 tar.gz；优先用 reF1nd 直二进制。
-  raw_binary="$singbox_dir/sing-box-ref1nd-linux-${arch}"
-  tarball="$singbox_dir/sing-box-${SING_BOX_BUNDLED_VERSION}-linux-${arch}.tar.gz"
-  if [ -r "$raw_binary" ]; then
-    archive="$raw_binary"
-    is_tarball=false
-  elif [ -r "$tarball" ]; then
-    archive="$tarball"
-    is_tarball=true
-  else
-    echo "Bundled sing-box binary not found (tried reF1nd raw and stock tarball):" >&2
-    echo "  $raw_binary" >&2
-    echo "  $tarball" >&2
+  binary="$singbox_dir/sing-box-ref1nd-linux-${arch}"
+  if [ ! -r "$binary" ]; then
+    echo "Bundled reF1nd sing-box binary not found: $binary" >&2
     exit 1
-  fi
-  sums="$singbox_dir/SHA256SUMS"
-  if [ -r "$sums" ] && [ "$is_tarball" = true ]; then
-    archive_name="$(basename "$archive")"
-    expected="$(awk -v name="$archive_name" '$2 == name { print $1 }' "$sums")"
-    if [ -z "$expected" ]; then
-      echo "No checksum entry for bundled archive: $archive_name" >&2
-      exit 1
-    fi
-    actual="$(sha256sum "$archive" | awk '{ print $1 }')"
-    if [ "$actual" != "$expected" ]; then
-      echo "Checksum mismatch for bundled archive: $archive_name" >&2
-      exit 1
-    fi
   fi
   tmp="$(mktemp -d)"
   trap "rm -rf '$tmp'" EXIT
@@ -201,13 +177,8 @@ install_sing_box() {
   else
     state_set sing_box_binary installed
   fi
-  echo "Installing bundled sing-box ${SING_BOX_BUNDLED_VERSION} (${arch})"
-  if [ "$is_tarball" = true ]; then
-    tar -xzf "$archive" -C "$tmp"
-    install -m 0755 "$tmp"/sing-box-*/sing-box /usr/local/bin/sing-box
-  else
-    install -m 0755 "$archive" /usr/local/bin/sing-box
-  fi
+  echo "Installing bundled reF1nd sing-box ${SING_BOX_BUNDLED_VERSION} (${arch})"
+  install -m 0755 "$binary" /usr/local/bin/sing-box
   state_set sing_box_bundled_version "$SING_BOX_BUNDLED_VERSION"
 }
 

@@ -869,8 +869,7 @@ def render_config(nodes=None, groups=None, rule_dir=RULE_DIR, normalized_lists=N
             groups.get("auto", {}).get("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS)
         ),
     }
-    # fallback 是 reF1nd 专有字段，stock sing-box 不认识。仅当 UI 明确设置了非 None 值时才写入，
-    # 否则 null/缺失字段会让 stock 报 unknown field 启动失败。
+    # fallback 是 reF1nd 专有字段，仅当 UI 明确设置了非 None 值时才写入 config。
     fb = groups.get("auto", {}).get("fallback")
     if fb is not None:
         auto["fallback"] = fb
