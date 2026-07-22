@@ -425,7 +425,41 @@ input[type="checkbox"] {
 }
 
 .auto-settings {
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+  align-items: end;
+}
+.auto-settings > * {
+  flex: 1;
+  min-width: 0;
+}
+.auto-settings .wide-field {
+  flex: 2;
+}
+.auto-settings > div:first-child {
+  flex: none;
+  padding-right: 6px;
+}
+.auto-settings > div:first-child p {
+  display: none;
+}
+.auto-settings label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.auto-settings .switch-field {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  flex: none;
+  border: none;
+  background: none;
+  padding: 0;
+  min-height: unset;
 }
 
 .dns-settings {
