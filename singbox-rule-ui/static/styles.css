@@ -488,6 +488,17 @@ input[type="checkbox"] {
   padding: 8px 10px;
 }
 
+.switch-field-row {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.switch-field-row > * {
+  flex: 1;
+  min-width: 0;
+}
+
 .custom-dns-fields {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(82px, 100px);
@@ -1725,6 +1736,10 @@ input[type="checkbox"] {
 
   .compact-settings {
     grid-template-columns: 1fr;
+  }
+
+  .switch-field-row {
+    flex-direction: column;
   }
 
   .rule-schedule-panel,
