@@ -863,7 +863,7 @@ def render_config(nodes=None, groups=None, rule_dir=RULE_DIR, normalized_lists=N
         "tag": "Auto",
         "outbounds": preferred_auto_outbounds(tags, groups),
         "url": groups.get("auto", {}).get("url", "https://www.gstatic.com/generate_204"),
-        "interval": groups.get("auto", {}).get("interval", "30s"),
+        "interval": "30s",
         # 默认只影响新连接；如果用户开启高级开关，则允许切换时主动清理旧连接。
         "interrupt_exist_connections": normalize_bool(
             groups.get("auto", {}).get("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS)
@@ -3263,7 +3263,7 @@ def normalize_payload_groups(raw_groups, nodes=None):
         auto = raw_groups.get("auto")
         if isinstance(auto, dict):
             groups["auto"]["url"] = normalize_url(auto.get("url", groups["auto"]["url"]), groups["auto"]["url"])
-            groups["auto"]["interval"] = str(auto.get("interval", groups["auto"]["interval"])).strip() or groups["auto"]["interval"]
+            groups["auto"]["interval"] = "30s"
             preferred = str(auto.get("preferred", groups["auto"].get("preferred", ""))).strip()
             if preferred in tags:
                 groups["auto"]["preferred"] = preferred
