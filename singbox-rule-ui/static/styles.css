@@ -435,7 +435,12 @@ input[type="checkbox"] {
   min-width: 0;
 }
 .auto-settings .wide-field {
-  flex: 2;
+  flex: 3;
+  min-width: 180px;
+}
+/* Interval, Tolerance, MaxDelay — narrow for short values */
+.auto-settings label:not(.switch-field):not(.wide-field) {
+  flex: 0 1 110px;
 }
 .auto-settings > div:first-child {
   flex: none;
