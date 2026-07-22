@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-REPO="${SING_BOX_GATEWAY_REPO:-hanigege/sing-box1.13.13-alpine-ui}"
+REPO="${SING_BOX_GATEWAY_REPO:-hanigege/singbox-ui-alpine}"
 REF="${SING_BOX_GATEWAY_REF:-main}"
 ACTION="${1:-install}"
 PROXY_PREFIX="${SING_BOX_GATEWAY_PROXY_PREFIX:-https://ghproxy.net/}"
@@ -56,7 +56,7 @@ download_urls() {
   printf "%s\n" "$url"
 }
 
-echo "正在下载 sing-box1.13.13-alpine-ui ${REPO}@${REF}..."
+echo "正在下载 singbox-ui-alpine ${REPO}@${REF}..."
 archive_url="https://github.com/${REPO}/archive/refs/heads/${REF}.tar.gz"
 urls_file="$tmp/urls"
 download_urls "$archive_url" > "$urls_file"

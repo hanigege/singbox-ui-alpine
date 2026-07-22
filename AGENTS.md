@@ -94,7 +94,7 @@ sh -n \
 
 | 仓库 | 本地路径 | 说明 |
 |------|---------|------|
-| `hanigege/sing-box1.13.13-alpine-ui` | `/Users/mana/Documents/codex/sb-alpine` | 当前工作仓库（sb-alpine）。Alpine OpenRC 环境，sing-box 1.13.14 网关 + Rule UI。生产部署在 10.20.20.6。 |
+| `hanigege/singbox-ui-alpine` | `~/codex/sb-alpine` | 当前工作仓库（sb-alpine）。Alpine OpenRC 环境，sing-box reF1nd 网关 + Rule UI。生产部署在 10.20.20.6 和 10.20.20.16。 |
 | `hanigege/sing-box1.14x-gateway-ui` | `/Users/mana/Documents/codex/sing-box1.14x-gateway-ui` | sing-box 1.14.x 网关 + Rule UI。代码结构和 alpine-ui 基本一致。 |
 | `hanigege/sing-box1.13.13-gateway-ui` | `/Users/mana/Documents/codex/sing-box1.13.13-gateway-ui` | 另一个 sing-box 1.13.13 网关仓库。代码结构和前两个一致。 |
 
