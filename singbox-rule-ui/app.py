@@ -787,8 +787,8 @@ def load_groups():
     groups["auto"].setdefault("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS)
     # urltest 默认只影响新连接；需要快速脱离坏节点时，用户可以手动开启中断旧连接。
     groups["auto"]["interrupt_exist_connections"] = normalize_bool(groups["auto"]["interrupt_exist_connections"])
-    if "fallback" not in groups["auto"]:
-        groups["auto"]["fallback"] = None
+    if "fallback" not in groups["auto"] or groups["auto"]["fallback"] is None:
+        groups["auto"]["fallback"] = {"enabled": True, "max_delay": "400ms"}
     groups["fakeip"].setdefault("tag", "fakeip-dns")
     groups["fakeip"].setdefault("inet4_range", "28.0.0.0/8")
     groups["fakeip"].setdefault("inet6_range", "2001:2::/64")
