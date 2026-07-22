@@ -1,10 +1,6 @@
-# sing-box1.13.14-alpine-ui
+# **醒目说明：sing-box1.13.14-alpine-ui 在分支里
 
-> **醒目说明：本 Alpine 小白网关仓库固定使用 `sing-box 1.13.14` 正式版，不使用 latest 或上游自动升级版本。**
-
-这是从 `hanigege/sing-box1.13.13-gateway-ui` 迁移出的 Alpine/OpenRC 版本，面向旁路代理/旁路网关场景，集成 `sing-box`、TProxy、分流规则自动更新、规则管理 UI 和受 token 保护的运行状态面板。
-
-设计目标是：**高效、简洁、sing-box 不死、Alpine 下可预估零维护**。所有配置保存、规则更新和 TProxy 同步都先检查、可回滚；安装器不改宿主机 DNS，不写公共 DNS，不启用 IPv6 RA 广播，避免把旁路机变成不可预期的默认网关。
+# 下面是sing-boxreF1nd魔改版
 
 ## 功能
 
