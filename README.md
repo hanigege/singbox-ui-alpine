@@ -1,4 +1,4 @@
-# **醒目说明：sing-box1.13.14-alpine-ui 在分支里
+# **醒目说明：官方sing-box1.13.14-alpine-ui 在分支里
 
 # 下面是sing-boxreF1nd魔改版
 
