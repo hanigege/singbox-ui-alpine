@@ -29,7 +29,7 @@
 
 需要 root 权限。不要在 Debian/Ubuntu 上使用这个仓库；Debian/Ubuntu 请继续用原 systemd 版本。
 
-## 一键安装
+## reF1nd魔改版 一键安装 
 
 提供两个并行的安装入口，按网络环境选一个即可。两个入口走不同的安装脚本，最终效果一致：
 
@@ -46,11 +46,11 @@ curl -fsSL https://raw.githubusercontent.com/hanigege/singbox-ui-alpine/main/scr
 curl -fsSL https://ghproxy.net/https://raw.githubusercontent.com/hanigege/singbox-ui-alpine/main/scripts/quick-install-proxy.sh | sh
 ```
 
-# 官方版可以从下面的链接安装
+## 官方版可以从下面的链接安装
 ```
 curl -fsSL https://raw.githubusercontent.com/hanigege/singbox-ui-alpine/stock-1.13.14/scripts/quick-install.sh | sh
 ```
-# 或者如果网络不稳定用反代版：
+## 或者如果网络不稳定用反代版：
 ```
 curl -fsSL https://ghproxy.net/https://raw.githubusercontent.com/hanigege/singbox-ui-alpine/stock-1.13.14/scripts/quick-install-proxy.sh | sh
 ```
