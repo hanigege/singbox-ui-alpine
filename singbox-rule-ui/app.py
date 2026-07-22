@@ -725,7 +725,6 @@ def extract_initial_manager_data(config):
         "auto": {
             "url": (auto or {}).get("url", "https://www.gstatic.com/generate_204"),
             "interval": (auto or {}).get("interval", "30s"),
-            "tolerance": (auto or {}).get("tolerance", 50),
             "interrupt_exist_connections": (auto or {}).get("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS),
             "fallback": (auto or {}).get("fallback", None),
         },
@@ -785,7 +784,6 @@ def load_groups():
     groups["proxy"]["interrupt_exist_connections"] = normalize_bool(groups["proxy"]["interrupt_exist_connections"])
     groups["auto"].setdefault("url", "https://www.gstatic.com/generate_204")
     groups["auto"].setdefault("interval", "30s")
-    groups["auto"].setdefault("tolerance", 50)
     groups["auto"].setdefault("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS)
     # urltest 默认只影响新连接；需要快速脱离坏节点时，用户可以手动开启中断旧连接。
     groups["auto"]["interrupt_exist_connections"] = normalize_bool(groups["auto"]["interrupt_exist_connections"])
@@ -866,7 +864,6 @@ def render_config(nodes=None, groups=None, rule_dir=RULE_DIR, normalized_lists=N
         "outbounds": preferred_auto_outbounds(tags, groups),
         "url": groups.get("auto", {}).get("url", "https://www.gstatic.com/generate_204"),
         "interval": groups.get("auto", {}).get("interval", "30s"),
-        "tolerance": groups.get("auto", {}).get("tolerance", 50),
         # 默认只影响新连接；如果用户开启高级开关，则允许切换时主动清理旧连接。
         "interrupt_exist_connections": normalize_bool(
             groups.get("auto", {}).get("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS)
@@ -2803,14 +2800,14 @@ def config_health_summary(ok, route_order_ok, fakeip_route_ok, mtu, route_final,
         ok
         and route_order_ok
         and fakeip_route_ok
-        and str(mtu) in ("1492", "1500")
+        and str(mtu) == "1492"
         and route_final == "direct"
         and bool(local_dns.get("server"))
     ):
         return {"level": "great", "tone": "good", "reasons": []}
     if ok:
         great_reasons = []
-        if str(mtu) not in ("1492", "1500"):
+        if str(mtu) != "1492":
             great_reasons.append("mtu_not_ideal")
         # 未来新增"状态极佳"级别检查项时，在此追加条件即可
         return {"level": "normal", "tone": "soft", "reasons": great_reasons}
@@ -3076,17 +3073,16 @@ def auto_selected_delay(auto_now, measured_delays):
     return read_delay_history(auto_now)
 
 
-def auto_alignment_decision(auto_now, current_delay, best_tag, best_delay, tolerance):
+def auto_alignment_decision(auto_now, current_delay, best_tag, best_delay):
     if not best_tag or not isinstance(best_delay, int):
         return {"shouldSwitch": False, "target": auto_now, "reason": "no best delay"}
     if auto_now == best_tag:
         return {"shouldSwitch": False, "target": auto_now, "reason": "already best"}
     if not auto_now or not isinstance(current_delay, int):
         return {"shouldSwitch": True, "target": best_tag, "reason": "current delay unavailable"}
-    threshold = best_delay + tolerance
-    if current_delay > threshold:
-        return {"shouldSwitch": True, "target": best_tag, "reason": "current slower than tolerance", "threshold": threshold}
-    return {"shouldSwitch": False, "target": auto_now, "reason": "current within tolerance", "threshold": threshold}
+    if current_delay > best_delay:
+        return {"shouldSwitch": True, "target": best_tag, "reason": "current slower than best"}
+    return {"shouldSwitch": False, "target": auto_now, "reason": "current within or equal to best"}
 
 
 def align_auto_now_with_measured_delays(measured_delays):
@@ -3099,8 +3095,7 @@ def align_auto_now_with_measured_delays(measured_delays):
         return {"changed": False, "target": best["tag"], "error": state.get("error") or "Auto status unavailable"}
     auto_now = state.get("data", {}).get("autoNow")
     current_delay = auto_selected_delay(auto_now, measured_delays)
-    tolerance = normalize_non_negative_number(load_groups().get("auto", {}).get("tolerance", 50), 50)
-    decision = auto_alignment_decision(auto_now, current_delay, best["tag"], best["delay"], tolerance)
+    decision = auto_alignment_decision(auto_now, current_delay, best["tag"], best["delay"])
     if not decision["shouldSwitch"]:
         return {
             "changed": False,
@@ -3109,7 +3104,6 @@ def align_auto_now_with_measured_delays(measured_delays):
             "bestDelay": best["delay"],
             "current": auto_now,
             "currentDelay": current_delay,
-            "tolerance": tolerance,
             "reason": decision["reason"],
             "threshold": decision.get("threshold"),
         }
@@ -3120,7 +3114,6 @@ def align_auto_now_with_measured_delays(measured_delays):
         "bestDelay": best["delay"],
         "current": auto_now,
         "currentDelay": current_delay,
-        "tolerance": tolerance,
         "reason": decision["reason"],
         "threshold": decision.get("threshold"),
         "wouldSwitch": True,
@@ -3268,7 +3261,6 @@ def normalize_payload_groups(raw_groups, nodes=None):
         if isinstance(auto, dict):
             groups["auto"]["url"] = normalize_url(auto.get("url", groups["auto"]["url"]), groups["auto"]["url"])
             groups["auto"]["interval"] = str(auto.get("interval", groups["auto"]["interval"])).strip() or groups["auto"]["interval"]
-            groups["auto"]["tolerance"] = normalize_non_negative_number(auto.get("tolerance", groups["auto"]["tolerance"]), 50)
             preferred = str(auto.get("preferred", groups["auto"].get("preferred", ""))).strip()
             if preferred in tags:
                 groups["auto"]["preferred"] = preferred
