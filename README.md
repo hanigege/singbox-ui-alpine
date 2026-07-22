@@ -25,11 +25,10 @@
 
 ## 支持系统
 
-当前安装器只面向 Alpine Linux + OpenRC：
+当前安装器只面向 Alpine Linux + OpenRC，仅支持 amd64 架构（reF1nd 只提供 amd64 二进制）：
 
 - Alpine 3.19+
 - `x86_64/amd64`
-- `aarch64/arm64`
 
 需要 root 权限。不要在 Debian/Ubuntu 上使用这个仓库；Debian/Ubuntu 请继续用原 systemd 版本。
 
@@ -51,12 +50,6 @@ curl -fsSL https://ghproxy.net/https://raw.githubusercontent.com/hanigege/sing-b
 ```
 
 安装器自动安装 Alpine 依赖：`bash`、`curl`、`ca-certificates`、`tar`、`gzip`、`python3`、`nftables`、`iproute2`、`rsync`、`util-linux`、`coreutils`、`openrc`。仓库内置的 `sing-box` 是 reF1nd 增强版 `v1.14.0-alpha.48-reF1nd` 静态二进制，不再需要 `gcompat`。卸载时默认保留 apk 包，避免连带移除系统基础依赖。
-
-如需指定架构（仅 Git 安装方式）：
-
-```bash
-SING_BOX_ARCH=arm64 bash scripts/install.sh
-```
 
 如果安装在 Proxmox VE 的 Alpine LXC 里，一键安装只负责容器内的 sing-box、TProxy、OpenRC 和 Rule UI，不会改 PVE 宿主机配置，也不能替你写 `/etc/pve/lxc/<CTID>.conf`。高并发或高带宽场景建议安装后继续看下面的“Proxmox VE / LXC 可选优化”。
 

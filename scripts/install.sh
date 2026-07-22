@@ -139,7 +139,7 @@ detect_arch() {
   fi
   case "$arch" in
     x86_64|amd64) echo "amd64" ;;
-    aarch64|arm64) echo "arm64" ;;
+    aarch64|arm64) echo "Unsupported architecture: $arch — reF1nd binary only available for amd64. See third_party/sing-box/ for available builds." >&2; exit 1 ;;
     *) echo "Unsupported architecture: $arch" >&2; exit 1 ;;
   esac
 }
