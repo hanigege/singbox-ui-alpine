@@ -46,6 +46,14 @@ curl -fsSL https://raw.githubusercontent.com/hanigege/singbox-ui-alpine/main/scr
 curl -fsSL https://ghproxy.net/https://raw.githubusercontent.com/hanigege/singbox-ui-alpine/main/scripts/quick-install-proxy.sh | sh
 ```
 
+# 官方版可以从下面的链接安装
+```
+curl -fsSL https://raw.githubusercontent.com/hanigege/singbox-ui-alpine/stock-1.13.14/scripts/quick-install.sh | sh
+```
+# 或者如果网络不稳定用反代版：
+```
+curl -fsSL https://ghproxy.net/https://raw.githubusercontent.com/hanigege/singbox-ui-alpine/stock-1.13.14/scripts/quick-install-proxy.sh | sh
+```
 安装器自动安装 Alpine 依赖：`bash`、`curl`、`ca-certificates`、`tar`、`gzip`、`python3`、`nftables`、`iproute2`、`rsync`、`util-linux`、`coreutils`、`openrc`。仓库内置的 `sing-box` 是 reF1nd 增强版 `v1.14.0-alpha.48-reF1nd` 静态二进制，不再需要 `gcompat`。卸载时默认保留 apk 包，避免连带移除系统基础依赖。
 
 如果安装在 Proxmox VE 的 Alpine LXC 里，一键安装只负责容器内的 sing-box、TProxy、OpenRC 和 Rule UI，不会改 PVE 宿主机配置，也不能替你写 `/etc/pve/lxc/<CTID>.conf`。高并发或高带宽场景建议安装后继续看下面的“Proxmox VE / LXC 可选优化”。
