@@ -425,7 +425,10 @@ input[type="checkbox"] {
 }
 
 .auto-settings {
-  grid-template-columns: minmax(160px, 1fr) minmax(220px, 2fr) repeat(2, minmax(92px, 130px)) minmax(150px, 180px);
+  grid-template-columns: 2fr 1fr 1fr;
+}
+.auto-settings > div:first-child {
+  grid-column: 1 / -1;
 }
 
 .dns-settings {
@@ -486,17 +489,6 @@ input[type="checkbox"] {
   border-radius: 8px;
   background: #ffffff;
   padding: 8px 10px;
-}
-
-.switch-field-row {
-  grid-column: 1 / -1;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-.switch-field-row > * {
-  flex: 1;
-  min-width: 0;
 }
 
 .custom-dns-fields {
@@ -1736,10 +1728,6 @@ input[type="checkbox"] {
 
   .compact-settings {
     grid-template-columns: 1fr;
-  }
-
-  .switch-field-row {
-    flex-direction: column;
   }
 
   .rule-schedule-panel,
