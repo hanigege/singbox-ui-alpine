@@ -425,12 +425,72 @@ input[type="checkbox"] {
 }
 
 .auto-settings {
-  grid-template-columns: minmax(160px, 1fr) minmax(220px, 2fr) repeat(2, minmax(92px, 130px)) minmax(150px, 180px);
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+  align-items: end;
+}
+.auto-settings > * {
+  flex: 1;
+  min-width: 0;
+}
+.auto-settings .wide-field {
+  flex: 3;
+  min-width: 180px;
+}
+/* Interval, Tolerance, MaxDelay — narrow for short values */
+.auto-settings label:not(.switch-field):not(.wide-field) {
+  flex: 0 1 80px;
+}
+.auto-settings > div:first-child {
+  flex: none;
+  padding-right: 6px;
+}
+.auto-settings > div:first-child p {
+  display: none;
+}
+.auto-settings label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.auto-settings .switch-field {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  flex: none;
+  border: none;
+  background: none;
+  padding: 0;
+  min-height: unset;
 }
 
 .dns-settings {
-  grid-template-columns: minmax(170px, 1fr) minmax(180px, 240px) minmax(180px, 280px) minmax(140px, 170px);
-  align-items: stretch;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: end;
+}
+.dns-settings > div:first-child {
+  grid-column: 1 / -1;
+  margin-bottom: 4px;
+}
+.dns-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 2px 0 4px;
+}
+#refreshDnsDelayBtn {
+  min-height: 30px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+#dnsDelayRows {
+  grid-column: 1 / -1;
 }
 
 .wide-field {

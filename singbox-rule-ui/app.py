@@ -725,8 +725,8 @@ def extract_initial_manager_data(config):
         "auto": {
             "url": (auto or {}).get("url", "https://www.gstatic.com/generate_204"),
             "interval": (auto or {}).get("interval", "30s"),
-            "tolerance": (auto or {}).get("tolerance", 50),
             "interrupt_exist_connections": (auto or {}).get("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS),
+            "fallback": (auto or {}).get("fallback", None),
         },
         "direct": direct or {"type": "direct", "tag": "direct"},
         "block": block or {"type": "block", "tag": "block"},
@@ -784,12 +784,10 @@ def load_groups():
     groups["proxy"]["interrupt_exist_connections"] = normalize_bool(groups["proxy"]["interrupt_exist_connections"])
     groups["auto"].setdefault("url", "https://www.gstatic.com/generate_204")
     groups["auto"].setdefault("interval", "30s")
-    groups["auto"].setdefault("fallback", {"enabled": True, "max_delay": "400ms"})
-    groups["auto"].setdefault("tolerance", 50)
     groups["auto"].setdefault("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS)
     # urltest 默认只影响新连接；需要快速脱离坏节点时，用户可以手动开启中断旧连接。
     groups["auto"]["interrupt_exist_connections"] = normalize_bool(groups["auto"]["interrupt_exist_connections"])
-
+    groups["auto"].setdefault("fallback", {"enabled": True, "max_delay": "400ms"})
     groups["fakeip"].setdefault("tag", "fakeip-dns")
     groups["fakeip"].setdefault("inet4_range", "28.0.0.0/8")
     groups["fakeip"].setdefault("inet6_range", "2001:2::/64")
@@ -865,7 +863,6 @@ def render_config(nodes=None, groups=None, rule_dir=RULE_DIR, normalized_lists=N
         "outbounds": preferred_auto_outbounds(tags, groups),
         "url": groups.get("auto", {}).get("url", "https://www.gstatic.com/generate_204"),
         "interval": groups.get("auto", {}).get("interval", "30s"),
-        "tolerance": groups.get("auto", {}).get("tolerance", 50),
         # 默认只影响新连接；如果用户开启高级开关，则允许切换时主动清理旧连接。
         "interrupt_exist_connections": normalize_bool(
             groups.get("auto", {}).get("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS)
@@ -876,6 +873,8 @@ def render_config(nodes=None, groups=None, rule_dir=RULE_DIR, normalized_lists=N
     block = groups.get("block") or {"type": "block", "tag": "block"}
     config["outbounds"] = [proxy, auto, *[node["outbound"] for node in nodes if node.get("enabled", True)], direct, block]
     prune_managed_outbound_references(config, tags)
+    # reF1nd: 启用 Unified Delay，测速延时只计第二次 HTTP 请求（排除 TCP/TLS 握手），面板显示更真实
+    config.setdefault("experimental", {})["urltest_unified_delay"] = True
     return config
 
 
@@ -3118,17 +3117,16 @@ def auto_selected_delay(auto_now, measured_delays):
     return read_delay_history(auto_now)
 
 
-def auto_alignment_decision(auto_now, current_delay, best_tag, best_delay, tolerance):
+def auto_alignment_decision(auto_now, current_delay, best_tag, best_delay):
     if not best_tag or not isinstance(best_delay, int):
         return {"shouldSwitch": False, "target": auto_now, "reason": "no best delay"}
     if auto_now == best_tag:
         return {"shouldSwitch": False, "target": auto_now, "reason": "already best"}
     if not auto_now or not isinstance(current_delay, int):
         return {"shouldSwitch": True, "target": best_tag, "reason": "current delay unavailable"}
-    threshold = best_delay + tolerance
-    if current_delay > threshold:
-        return {"shouldSwitch": True, "target": best_tag, "reason": "current slower than tolerance", "threshold": threshold}
-    return {"shouldSwitch": False, "target": auto_now, "reason": "current within tolerance", "threshold": threshold}
+    if current_delay > best_delay:
+        return {"shouldSwitch": True, "target": best_tag, "reason": "current slower than best"}
+    return {"shouldSwitch": False, "target": auto_now, "reason": "current within or equal to best"}
 
 
 def align_auto_now_with_measured_delays(measured_delays):
@@ -3141,8 +3139,7 @@ def align_auto_now_with_measured_delays(measured_delays):
         return {"changed": False, "target": best["tag"], "error": state.get("error") or "Auto status unavailable"}
     auto_now = state.get("data", {}).get("autoNow")
     current_delay = auto_selected_delay(auto_now, measured_delays)
-    tolerance = normalize_non_negative_number(load_groups().get("auto", {}).get("tolerance", 50), 50)
-    decision = auto_alignment_decision(auto_now, current_delay, best["tag"], best["delay"], tolerance)
+    decision = auto_alignment_decision(auto_now, current_delay, best["tag"], best["delay"])
     if not decision["shouldSwitch"]:
         return {
             "changed": False,
@@ -3151,7 +3148,6 @@ def align_auto_now_with_measured_delays(measured_delays):
             "bestDelay": best["delay"],
             "current": auto_now,
             "currentDelay": current_delay,
-            "tolerance": tolerance,
             "reason": decision["reason"],
             "threshold": decision.get("threshold"),
         }
@@ -3162,7 +3158,6 @@ def align_auto_now_with_measured_delays(measured_delays):
         "bestDelay": best["delay"],
         "current": auto_now,
         "currentDelay": current_delay,
-        "tolerance": tolerance,
         "reason": decision["reason"],
         "threshold": decision.get("threshold"),
         "wouldSwitch": True,
@@ -3295,7 +3290,6 @@ def normalize_payload_groups(raw_groups, nodes=None):
         if isinstance(auto, dict):
             groups["auto"]["url"] = normalize_url(auto.get("url", groups["auto"]["url"]), groups["auto"]["url"])
             groups["auto"]["interval"] = str(auto.get("interval", groups["auto"]["interval"])).strip() or groups["auto"]["interval"]
-            groups["auto"]["tolerance"] = normalize_non_negative_number(auto.get("tolerance", groups["auto"]["tolerance"]), 50)
             preferred = str(auto.get("preferred", groups["auto"].get("preferred", ""))).strip()
             if preferred in tags:
                 groups["auto"]["preferred"] = preferred
@@ -3304,6 +3298,11 @@ def normalize_payload_groups(raw_groups, nodes=None):
             groups["auto"]["interrupt_exist_connections"] = normalize_bool(
                 auto.get("interrupt_exist_connections", groups["auto"].get("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS))
             )
+            fb = auto.get("fallback", groups["auto"].get("fallback", None))
+            if fb is not None and isinstance(fb, dict):
+                groups["auto"]["fallback"] = fb
+            else:
+                groups["auto"]["fallback"] = None
         fakeip = raw_groups.get("fakeip")
         if isinstance(fakeip, dict):
             groups["fakeip"]["inet4_range"] = normalize_cidr(
@@ -3326,12 +3325,13 @@ def normalize_payload_groups(raw_groups, nodes=None):
                 raise ValueError(f"Invalid local DNS upstream: {local_dns}")
             # 国内 DNS 上游影响所有直连域名解析，只接受内置候选，避免把错误地址写成“已保存”。
             groups["dns"]["local"] = local_dns
-            if local_dns == "custom_dns":
-                custom_server = str(dns.get("local_custom_server", "")).strip()
-                if custom_server:
-                    groups["dns"]["local_custom_server"] = custom_server
-                custom_port = int(dns.get("local_custom_port", 53))
-                groups["dns"]["local_custom_port"] = custom_port
+            # 无条件恢复 local_custom_server/port，即使当前 local 不是 custom_dns：
+            # 导出备份始终包含这两个字段，用户期望导入后与导出完全一致，不受 local 选择影响。
+            custom_server = str(dns.get("local_custom_server", "")).strip()
+            if custom_server:
+                groups["dns"]["local_custom_server"] = custom_server
+            custom_port = int(dns.get("local_custom_port", 53))
+            groups["dns"]["local_custom_port"] = custom_port
         ddns = raw_groups.get("ddns")
         if isinstance(ddns, dict):
             mode = str(ddns.get("dns", groups["ddns"].get("dns", "local"))).strip()
