@@ -787,8 +787,8 @@ def load_groups():
     groups["auto"].setdefault("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS)
     # urltest 默认只影响新连接；需要快速脱离坏节点时，用户可以手动开启中断旧连接。
     groups["auto"]["interrupt_exist_connections"] = normalize_bool(groups["auto"]["interrupt_exist_connections"])
-    if "fallback" not in groups["auto"] or groups["auto"]["fallback"] is None:
-        groups["auto"]["fallback"] = {"enabled": True, "max_delay": "400ms"}
+    if "fallback" not in groups["auto"]:
+        groups["auto"]["fallback"] = None
     groups["fakeip"].setdefault("tag", "fakeip-dns")
     groups["fakeip"].setdefault("inet4_range", "28.0.0.0/8")
     groups["fakeip"].setdefault("inet6_range", "2001:2::/64")
@@ -868,11 +868,8 @@ def render_config(nodes=None, groups=None, rule_dir=RULE_DIR, normalized_lists=N
         "interrupt_exist_connections": normalize_bool(
             groups.get("auto", {}).get("interrupt_exist_connections", DEFAULT_INTERRUPT_EXIST_CONNECTIONS)
         ),
+        "fallback": groups.get("auto", {}).get("fallback", None),
     }
-    # fallback 是 reF1nd 专有字段，仅当 UI 明确设置了非 None 值时才写入 config。
-    fb = groups.get("auto", {}).get("fallback")
-    if fb is not None:
-        auto["fallback"] = fb
     direct = groups.get("direct") or {"type": "direct", "tag": "direct"}
     block = groups.get("block") or {"type": "block", "tag": "block"}
     config["outbounds"] = [proxy, auto, *[node["outbound"] for node in nodes if node.get("enabled", True)], direct, block]
@@ -2803,14 +2800,14 @@ def config_health_summary(ok, route_order_ok, fakeip_route_ok, mtu, route_final,
         ok
         and route_order_ok
         and fakeip_route_ok
-        and str(mtu) in ("1492", "1500")
+        and str(mtu) == "1492"
         and route_final == "direct"
         and bool(local_dns.get("server"))
     ):
         return {"level": "great", "tone": "good", "reasons": []}
     if ok:
         great_reasons = []
-        if str(mtu) not in ("1492", "1500"):
+        if str(mtu) != "1492":
             great_reasons.append("mtu_not_ideal")
         # 未来新增"状态极佳"级别检查项时，在此追加条件即可
         return {"level": "normal", "tone": "soft", "reasons": great_reasons}
@@ -3157,23 +3154,8 @@ def current_proxy_payload(test_delays=False):
 
 
 def current_proxy_payload_with_history_alignment():
+    # 方案C: 前端不再触发 fallback/auto-align，交给 reF1nd fork 引擎层处理
     delays = get_node_delays(test=False)
-    delay_values = delays.get("delays", {}) if isinstance(delays, dict) else {}
-    if delay_values:
-        good = [item for item in delay_values.values() if isinstance(item, dict) and item.get("ok") and isinstance(item.get("delay"), int)]
-        if good:
-            auto_align = align_auto_now_with_measured_delays(delay_values)
-            if auto_align.get("wouldSwitch"):
-                # URLTest 不是 Selector，Clash API 不能直接 PUT 子节点；发现历史延迟已超过容差时，
-                # 触发一次 URLTest 自身测速，让 sing-box 按自己的规则刷新 Auto.now，再把真实运行态返回给 UI。
-                delays = refresh_proxy_delays()
-                return {"proxy": get_proxy_state(), "delays": delays}
-        else:
-            auto_align = {"changed": False, "target": None, "reason": "no measured delays"}
-    else:
-        auto_align = {"changed": False, "target": None}
-    if isinstance(delays, dict):
-        delays["autoAlign"] = auto_align
     return {"proxy": get_proxy_state(), "delays": delays}
 
 
@@ -3297,7 +3279,7 @@ def normalize_payload_groups(raw_groups, nodes=None):
             local_dns = str(dns.get("local", groups["dns"].get("local", DEFAULT_LOCAL_DNS_CHOICE))).strip()
             if local_dns not in LOCAL_DNS_CHOICES:
                 raise ValueError(f"Invalid local DNS upstream: {local_dns}")
-            # 国内 DNS 上游影响所有直连域名解析，只接受内置候选，避免把错误地址写成"已保存"。
+            # 国内 DNS 上游影响所有直连域名解析，只接受内置候选，避免把错误地址写成“已保存”。
             groups["dns"]["local"] = local_dns
             # 无条件恢复 local_custom_server/port，即使当前 local 不是 custom_dns：
             # 导出备份始终包含这两个字段，用户期望导入后与导出完全一致，不受 local 选择影响。
