@@ -177,30 +177,44 @@ SING_BOX_GATEWAY_ENABLE_FORWARDING=1 rc-service sing-box-tproxy restart
 
 如果要持久启用，可以把 `SING_BOX_GATEWAY_ENABLE_FORWARDING=1` 写入 `/etc/conf.d/sing-box-tproxy`，之后再重启服务。这个开关只影响容器内转发类 sysctl。PVE 宿主机上的 BBR、缓冲区、conntrack 和 LXC 的 `lxc.prlimit.nofile` 仍建议按实际链路手动配置。
 
-## Proxmox VE / LXC 可选优化
+# Proxmox VE / LXC 可选优化 (哪果sing-box安装在vm里，下面的就没必要配置了）
 
 这部分只适合 Proxmox VE 宿主机上的 Alpine LXC。它不是一键安装器的一部分，因为 PVE 宿主机和 LXC 配置属于容器外部边界，安装脚本不应该从容器内自动修改宿主机。
 
 ### PVE 宿主机网络参数
 
-在 PVE 宿主机上追加或确认 `/etc/sysctl.conf`：
+在 PVE 宿主机上追加或确认 `root@local:/etc/sysctl.d# `
+```
+cd /etc/sysctl.d
+nano 98-pve-lxc-singbox.conf：
+```
 
 ```conf
-# sing-box LXC 公共优化：由 PVE 宿主机承担全局内核调优
+
+# PVE Host sysctl for LXC sing-box gateway
+# LXC 与宿主机共享内核，这些参数直接影响容器内 TCP 性能
+
+# Bridge: 让 veth 桥接流量绕过 host iptables，减少开销
+net.bridge.bridge-nf-call-iptables = 0
+net.bridge.bridge-nf-call-ip6tables = 0
+
+# BBR 最佳搭档 qdisc
 net.core.default_qdisc = fq
-net.ipv4.tcp_congestion_control = bbr
-net.core.somaxconn = 32768
-net.ipv4.tcp_max_syn_backlog = 16384
-net.core.netdev_max_backlog = 65536
-net.core.rmem_max = 134217728
-net.core.wmem_max = 134217728
-net.ipv4.tcp_rmem = 4096 87380 67108864
+
+# 高负载 NAPI 轮询预算
+net.core.netdev_budget = 600
+net.core.netdev_budget_usecs = 4000
+
+# TCP 性能
+net.ipv4.tcp_slow_start_after_idle = 0
+net.ipv4.tcp_notsent_lowat = 16384
+net.ipv4.tcp_rmem = 4096 131072 67108864
 net.ipv4.tcp_wmem = 4096 65536 67108864
-net.core.rmem_default = 4194304
-net.core.wmem_default = 4194304
-fs.file-max = 2097152
-fs.nr_open = 2097152
+net.ipv4.tcp_congestion_control = bbr
+
 ```
+
+
 
 应用并检查：
 
