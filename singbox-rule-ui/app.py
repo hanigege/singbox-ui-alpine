@@ -633,6 +633,9 @@ def normalize_node(raw):
         if not str(outbound.get("uuid", "")).strip():
             raise ValueError(f"{tag}: uuid is required")
         outbound["uuid"] = str(outbound["uuid"]).strip()
+        # VLESS 多路复用协议必须用 smux，h2mux 会导致大量连接断开报错
+        if isinstance(outbound.get("multiplex"), dict):
+            outbound["multiplex"]["protocol"] = "smux"
         brutal = outbound.get("multiplex", {}).get("brutal") if isinstance(outbound.get("multiplex"), dict) else None
         if isinstance(brutal, dict):
             up = normalize_positive_number(brutal.get("up_mbps"), None)
