@@ -177,7 +177,7 @@ SING_BOX_GATEWAY_ENABLE_FORWARDING=1 rc-service sing-box-tproxy restart
 
 如果要持久启用，可以把 `SING_BOX_GATEWAY_ENABLE_FORWARDING=1` 写入 `/etc/conf.d/sing-box-tproxy`，之后再重启服务。这个开关只影响容器内转发类 sysctl。PVE 宿主机上的 BBR、缓冲区、conntrack 和 LXC 的 `lxc.prlimit.nofile` 仍建议按实际链路手动配置。
 
-# Proxmox VE / LXC 可选优化 (哪果sing-box安装在vm里，下面的就没必要配置了）
+## Proxmox VE / LXC 可选优化 (如果sing-box安装在vm里，下面的就没必要配置了）
 
 这部分只适合 Proxmox VE 宿主机上的 Alpine LXC。它不是一键安装器的一部分，因为 PVE 宿主机和 LXC 配置属于容器外部边界，安装脚本不应该从容器内自动修改宿主机。
 
