@@ -193,31 +193,54 @@ SING_BOX_GATEWAY_ENABLE_FORWARDING=1 rc-service sing-box-tproxy restart
 
 ### PVE 宿主机网络参数
 
-在 PVE 宿主机上追加或确认 `/etc/sysctl.conf`：
+## Proxmox VE / LXC 可选优化 (如果sing-box安装在vm里，下面的就没必要配置了）
 
-```conf
-# sing-box LXC 公共优化：由 PVE 宿主机承担全局内核调优
-net.core.default_qdisc = fq
-net.ipv4.tcp_congestion_control = bbr
-net.core.somaxconn = 32768
-net.ipv4.tcp_max_syn_backlog = 16384
-net.core.netdev_max_backlog = 65536
-net.core.rmem_max = 134217728
-net.core.wmem_max = 134217728
-net.ipv4.tcp_rmem = 4096 87380 67108864
-net.ipv4.tcp_wmem = 4096 65536 67108864
-net.core.rmem_default = 4194304
-net.core.wmem_default = 4194304
-fs.file-max = 2097152
-fs.nr_open = 2097152
+这部分只适合 Proxmox VE 宿主机上的 Alpine LXC。它不是一键安装器的一部分，因为 PVE 宿主机和 LXC 配置属于容器外部边界，安装脚本不应该从容器内自动修改宿主机。
+
+### PVE 宿主机网络参数
+
+在 PVE 宿主机上追加或确认 `root@local:/etc/sysctl.d# `
+```
+cd /etc/sysctl.d
+nano 98-pve-lxc-singbox.conf：
 ```
 
-应用并检查：
+```conf
+
+# PVE Host sysctl for LXC sing-box gateway
+# LXC 与宿主机共享内核，这些参数直接影响容器内 TCP 性能
+
+# Bridge: 让 veth 桥接流量绕过 host iptables，减少开销
+net.bridge.bridge-nf-call-iptables = 0
+net.bridge.bridge-nf-call-ip6tables = 0
+
+# BBR + fq
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
+
+# 高负载 NAPI 轮询预算
+net.core.netdev_budget = 600
+net.core.netdev_budget_usecs = 4000
+
+# TCP 性能
+net.ipv4.tcp_slow_start_after_idle = 0
+net.ipv4.tcp_notsent_lowat = 16384
+net.ipv4.tcp_rmem = 4096 131072 67108864
+net.ipv4.tcp_wmem = 4096 65536 67108864
+
+# socket 队列（高连接数场景有用，代理网关建议适度提升）
+net.core.somaxconn = 16384
+net.ipv4.tcp_max_syn_backlog = 8192
+
+```
+
+
+存到 PVE 宿主机 /etc/sysctl.d/98-pve-lxc-singbox.conf，
+然后 sysctl -p 生效。
+应用：
 
 ```bash
 sysctl -p
-sysctl net.ipv4.tcp_congestion_control net.core.default_qdisc
-sysctl net.core.rmem_max net.core.wmem_max fs.file-max fs.nr_open
 ```
 
 `net.netfilter.nf_conntrack_max` 在部分 PVE 内核上会被已加载的 `nf_conntrack` 模块限制或回退。如果运行态反复回到默认值，可以先不强求；对本项目的 FakeIP/TProxy 入口模式来说，`nofile`、缓冲区和服务稳定性更关键。
