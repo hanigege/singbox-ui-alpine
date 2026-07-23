@@ -198,8 +198,9 @@ nano 98-pve-lxc-singbox.conf：
 net.bridge.bridge-nf-call-iptables = 0
 net.bridge.bridge-nf-call-ip6tables = 0
 
-# BBR 最佳搭档 qdisc
+# BBR + fq
 net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
 
 # 高负载 NAPI 轮询预算
 net.core.netdev_budget = 600
@@ -210,18 +211,20 @@ net.ipv4.tcp_slow_start_after_idle = 0
 net.ipv4.tcp_notsent_lowat = 16384
 net.ipv4.tcp_rmem = 4096 131072 67108864
 net.ipv4.tcp_wmem = 4096 65536 67108864
-net.ipv4.tcp_congestion_control = bbr
+
+# socket 队列（高连接数场景有用，代理网关建议适度提升）
+net.core.somaxconn = 16384
+net.ipv4.tcp_max_syn_backlog = 8192
 
 ```
 
 
-
-应用并检查：
+存到 PVE 宿主机 /etc/sysctl.d/98-pve-lxc-singbox.conf，
+然后 sysctl -p 生效。
+应用：
 
 ```bash
 sysctl -p
-sysctl net.ipv4.tcp_congestion_control net.core.default_qdisc
-sysctl net.core.rmem_max net.core.wmem_max fs.file-max fs.nr_open
 ```
 
 `net.netfilter.nf_conntrack_max` 在部分 PVE 内核上会被已加载的 `nf_conntrack` 模块限制或回退。如果运行态反复回到默认值，可以先不强求；对本项目的 FakeIP/TProxy 入口模式来说，`nofile`、缓冲区和服务稳定性更关键。
