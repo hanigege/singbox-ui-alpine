@@ -2154,13 +2154,14 @@ function renderNodes() {
   $("nodeSubmit").textContent = editingNodeTag ? t("updateNode") : t("addNode");
   $("nodeCancel").classList.toggle("hidden", !editingNodeTag);
   renderDefaultSelect();
-  const rows = $("nodeRows");
-  rows.innerHTML = "";
+  const _r = $("nodeRows");
+  const rows = _r.cloneNode(false);
   if (!nodes.length) {
     const empty = document.createElement("div");
     empty.className = "empty";
     empty.textContent = t("noEntries");
     rows.appendChild(empty);
+    _r.replaceWith(rows);
     return;
   }
   const autoCard = document.createElement("div");
@@ -2290,6 +2291,7 @@ function renderNodes() {
     card.append(title, actions);
     rows.appendChild(card);
   }
+  _r.replaceWith(rows);
 }
 
 function getNode(tag) {
@@ -2499,7 +2501,6 @@ function buildNodeFromForm() {
     outbound.tcp_fast_open = outbound.tcp_fast_open !== false;
     outbound.tls.utls = outbound.tls.utls || { enabled: true, fingerprint: "chrome" };
     if (transportMode === "brutal") {
-      // 默认 smux 协议——h2mux 在服务端 H2 连接超时时导致批量断连（ClientConn.Close），smux 更稳定
       outbound.multiplex = outbound.multiplex || { enabled: true, protocol: "smux", padding: true, max_connections: 1, min_streams: 2 };
       outbound.multiplex.brutal = outbound.multiplex.brutal || { enabled: true };
       outbound.multiplex.brutal.enabled = true;
