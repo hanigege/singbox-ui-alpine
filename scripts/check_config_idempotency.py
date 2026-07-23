@@ -30,7 +30,7 @@ def load_app(workdir):
 
 def sample_base_config():
     return {
-        "log": {"level": "warning"},
+        "log": {"level": "info"},
         "dns": {
             "servers": [
                 {

@@ -132,7 +132,7 @@ def base_config(lan_ip, ui_secret, fake4, fake6, ipv6_dns_listen):
         dns_inbounds.append("dns-in-v6")
         inbounds.append({"type": "direct", "tag": "dns-in-v6", "listen": ipv6_dns_listen, "listen_port": 53})
     return {
-        "log": {"level": "warning"},
+        "log": {"level": "info"},
         "dns": {
             "servers": [
                 {
