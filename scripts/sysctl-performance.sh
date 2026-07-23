@@ -43,6 +43,11 @@ net.ipv4.tcp_congestion_control = bbr
 net.ipv4.tcp_rmem = 4096 131072 67108864
 net.ipv4.tcp_wmem = 4096 65536 67108864
 net.ipv4.tcp_slow_start_after_idle = 0
+net.ipv4.tcp_notsent_lowat = 16384
+net.core.rmem_max = 67108864
+net.core.wmem_max = 67108864
+net.ipv4.tcp_fastopen = 3
+net.ipv4.tcp_mtu_probing = 1
 EOF
 fi
 
@@ -52,13 +57,21 @@ if grep -qs '^net.core.default_qdisc' "$SYSCTL_CONF"; then
   echo "  清理了不兼容的 default_qdisc 配置行（部分内核不支持，改用 tc qdisc 替代）"
 fi
 
-# 追加 tcp_notsent_lowat（幂等：已有则跳过）
-if grep -qs '^net.ipv4.tcp_notsent_lowat' "$SYSCTL_CONF"; then
-  echo "  tcp_notsent_lowat 已配置，跳过."
-else
-  echo "net.ipv4.tcp_notsent_lowat = 131072" >> "$SYSCTL_CONF"
-  echo "  ✓ tcp_notsent_lowat=131072 已写入 $SYSCTL_CONF"
-fi
+# 追加优化参数（幂等：已有则跳过）
+for param in \
+  "net.ipv4.tcp_notsent_lowat = 16384" \
+  "net.core.rmem_max = 67108864" \
+  "net.core.wmem_max = 67108864" \
+  "net.ipv4.tcp_fastopen = 3" \
+  "net.ipv4.tcp_mtu_probing = 1"; do
+  key="${param%% = *}"
+  if grep -qs "^$key" "$SYSCTL_CONF"; then
+    echo "  $key 已配置，跳过."
+  else
+    echo "$param" >> "$SYSCTL_CONF"
+    echo "  ✓ $param 已写入 $SYSCTL_CONF"
+  fi
+done
 
 # 应用 sysctl（忽略未知键的警告）
 sysctl -p "$SYSCTL_CONF" 2>/dev/null || sysctl -e -p "$SYSCTL_CONF" 2>/dev/null || true
@@ -109,7 +122,7 @@ if [ "$FQ_ACTIVE" != "true" ]; then
   # 清理旧文件
   rm -f /etc/local.d/singbox-qdisc.start /etc/systemd/system/singbox-qdisc.service
   echo "=== 完成 ==="
-  echo "tcp_notsent_lowat=131072 已生效."
+  echo "tcp_notsent_lowat=16384 + rmem_max/wmem_max + tcp_fastopen=3 + tcp_mtu_probing=1 已生效."
   exit 0
 fi
 
@@ -160,4 +173,4 @@ fi
 
 echo ""
 echo "=== 完成 ==="
-echo "tcp_notsent_lowat=131072 + fq on $IFACE — 重启后依然生效."
+echo "tcp_notsent_lowat=16384 + rmem_max/wmem_max + tcp_fastopen=3 + tcp_mtu_probing=1 — 重启后依然生效."

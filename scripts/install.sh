@@ -480,33 +480,51 @@ LOCALEOF
 
 setup_performance_qdisc() {
   local iface conf_line_conflict
-  echo "=== TCP 性能优化 (tcp_notsent_lowat + fq qdisc) ==="
+  echo "=== TCP 性能优化 (tcp_notsent_lowat + fq qdisc + buffer/fastopen) ==="
 
-  # sysctl: tcp_notsent_lowat — 无副作用，无条件启用
-  if grep -qs '^net.ipv4.tcp_notsent_lowat' /etc/sysctl.d/98-sing-box-performance.conf 2>/dev/null; then
-    echo "  tcp_notsent_lowat 已配置，跳过."
-  else
-    # 确保 sysctl 文件存在
-    mkdir -p /etc/sysctl.d
-    if [ ! -f /etc/sysctl.d/98-sing-box-performance.conf ]; then
-      cat > /etc/sysctl.d/98-sing-box-performance.conf << 'EOF'
+  # sysctl: 性能优化参数 — 无副作用，无条件启用
+  mkdir -p /etc/sysctl.d
+  if [ ! -f /etc/sysctl.d/98-sing-box-performance.conf ]; then
+    cat > /etc/sysctl.d/98-sing-box-performance.conf << 'EOF'
 # sing-box gateway 性能参数
 net.ipv4.tcp_congestion_control = bbr
 net.ipv4.tcp_rmem = 4096 131072 67108864
 net.ipv4.tcp_wmem = 4096 65536 67108864
 net.ipv4.tcp_slow_start_after_idle = 0
+net.ipv4.tcp_notsent_lowat = 16384
+net.core.rmem_max = 67108864
+net.core.wmem_max = 67108864
+net.ipv4.tcp_fastopen = 3
+net.ipv4.tcp_mtu_probing = 1
 EOF
-    fi
-    # 检查是否因上次失败的 sysctl 写入了不完整的行
-    conf_line_conflict=$(grep -cs '^net.core.default_qdisc' /etc/sysctl.d/98-sing-box-performance.conf || true)
-    if [ "$conf_line_conflict" -gt 0 ]; then
-      # 移除可能不支持的 default_qdisc（Alpine 某些内核不支持）
-      sed -i '/^net.core.default_qdisc/d' /etc/sysctl.d/98-sing-box-performance.conf
-      echo "  清理了不兼容的 default_qdisc 配置行."
-    fi
-    echo "net.ipv4.tcp_notsent_lowat = 131072" >> /etc/sysctl.d/98-sing-box-performance.conf
-    echo "  tcp_notsent_lowat=131072 已写入 sysctl.d."
+    echo "  sysctl 性能配置已写入."
   fi
+  # 检查是否因上次失败的 sysctl 写入了不完整的行
+  conf_line_conflict=$(grep -cs '^net.core.default_qdisc' /etc/sysctl.d/98-sing-box-performance.conf || true)
+  if [ "$conf_line_conflict" -gt 0 ]; then
+    # 移除可能不支持的 default_qdisc（Alpine 某些内核不支持）
+    sed -i '/^net.core.default_qdisc/d' /etc/sysctl.d/98-sing-box-performance.conf
+    echo "  清理了不兼容的 default_qdisc 配置行."
+  fi
+  # 幂等补充：确保所有优化参数都存在（覆盖旧安装残留的 131072）
+  for param in \
+    "net.ipv4.tcp_notsent_lowat = 16384" \
+    "net.core.rmem_max = 67108864" \
+    "net.core.wmem_max = 67108864" \
+    "net.ipv4.tcp_fastopen = 3" \
+    "net.ipv4.tcp_mtu_probing = 1"; do
+    key="${param%% = *}"
+    if grep -qs "^$key" /etc/sysctl.d/98-sing-box-performance.conf; then
+      # 如果已存在但值不同（旧安装 131072），用 sed 更新
+      if ! grep -qs "^$param" /etc/sysctl.d/98-sing-box-performance.conf; then
+        sed -i "s/^$key =.*/$param/" /etc/sysctl.d/98-sing-box-performance.conf
+        echo "  $key 已更新为 ${param#*= }."
+      fi
+    else
+      echo "$param" >> /etc/sysctl.d/98-sing-box-performance.conf
+      echo "  $param 已写入."
+    fi
+  done
   sysctl -p /etc/sysctl.d/98-sing-box-performance.conf 2>/dev/null || \
     sysctl -e -p /etc/sysctl.d/98-sing-box-performance.conf 2>/dev/null || true
   echo "  当前 tcp_notsent_lowat=$(sysctl -n net.ipv4.tcp_notsent_lowat 2>/dev/null || echo 'N/A')"
