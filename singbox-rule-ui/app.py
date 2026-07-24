@@ -647,10 +647,19 @@ def normalize_node(raw):
             if brutal.get("enabled") is False:
                 # 选择系统 BBR/TCP 时删除整个 multiplex，保证 VLESS 回到普通 TCP，由内核拥塞控制接管。
                 outbound.pop("multiplex", None)
-            elif up is not None:
-                brutal["up_mbps"] = up
             else:
-                brutal.pop("up_mbps", None)
+                if isinstance(outbound.get("multiplex"), dict):
+                    outbound["multiplex"]["enabled"] = True
+                    if outbound["multiplex"].get("protocol") == "smux" or "protocol" not in outbound["multiplex"]:
+                        outbound["multiplex"]["protocol"] = "h2mux"
+                    # 根治 h2mux 日志报错：max_connections 设为 4 解决单连接崩塌；禁用非标准 padding 解决服务端 PROTOCOL_ERROR；min_streams 设为 0 避免空闲连接超时
+                    outbound["multiplex"]["max_connections"] = 4
+                    outbound["multiplex"]["min_streams"] = 0
+                    outbound["multiplex"]["padding"] = False
+                if up is not None:
+                    brutal["up_mbps"] = up
+                else:
+                    brutal.pop("up_mbps", None)
             if isinstance(outbound.get("multiplex", {}).get("brutal"), dict):
                 if down is not None:
                     brutal["down_mbps"] = down

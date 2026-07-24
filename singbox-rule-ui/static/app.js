@@ -2491,7 +2491,12 @@ function buildNodeFromForm() {
     outbound.tcp_fast_open = outbound.tcp_fast_open !== false;
     outbound.tls.utls = outbound.tls.utls || { enabled: true, fingerprint: "chrome" };
     if (transportMode === "brutal") {
-      outbound.multiplex = outbound.multiplex || { enabled: true, protocol: "smux", max_connections: 4, min_streams: 4, max_streams: 0, padding: false };
+      outbound.multiplex = outbound.multiplex || { enabled: true, protocol: "h2mux", padding: false, max_connections: 4, min_streams: 0 };
+      outbound.multiplex.enabled = true;
+      outbound.multiplex.protocol = "h2mux";
+      outbound.multiplex.padding = false;
+      outbound.multiplex.max_connections = 4;
+      outbound.multiplex.min_streams = 0;
       outbound.multiplex.brutal = outbound.multiplex.brutal || { enabled: true };
       outbound.multiplex.brutal.enabled = true;
       if (upMbps !== null) outbound.multiplex.brutal.up_mbps = upMbps;
