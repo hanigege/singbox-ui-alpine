@@ -1347,6 +1347,10 @@ def apply_cache_file_settings(config):
     cache = config.setdefault("experimental", {}).setdefault("cache_file", {})
     cache["enabled"] = True
     cache["store_fakeip"] = True
+    # sing-box 存 fakeip 映射时必须带 store key，cache_id 为空会静默跳过并只留一条
+    # 「save FakeIP cache: key required」WARN，结果是重启后 fakeip 映射不复用、白开 store_fakeip。
+    if not str(cache.get("cache_id") or "").strip():
+        cache["cache_id"] = "gateway"
 
 
 def apply_portable_listeners(config):

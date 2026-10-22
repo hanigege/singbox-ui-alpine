@@ -260,6 +260,12 @@ install_logrotate_config() {
 }
 EOF
   chmod 0644 "$LOGROTATE_CONFIG"
+  # logrotate 默认只由 /etc/periodic/daily 触发（一天一次），日志突发时单个文件能在
+  # 24 小时内涨到任意大小。挂进 hourly（crond 已有 `0 * * * * run-parts /etc/periodic/hourly`），
+  # 最坏增量从 24 小时缩到 1 小时；size 条件保证空跑无副作用。
+  if [ -d /etc/periodic/hourly ]; then
+    ln -sf /etc/periodic/daily/logrotate /etc/periodic/hourly/logrotate
+  fi
 }
 
 bootstrap_config() {

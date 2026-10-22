@@ -6,8 +6,10 @@ command="/usr/local/bin/sing-box"
 command_args="run -c /etc/sing-box/config.json"
 command_background="yes"
 pidfile="/run/${RC_SVCNAME}.pid"
-output_log="/var/log/sing-box-gateway/sing-box.log"
-error_log="/var/log/sing-box-gateway/sing-box.log"
+# 主日志由 sing-box 自己的 log.output 写（写到文件时它不带 ANSI 颜色码）；
+# 这里只兜住 stdout/stderr：启动失败、panic、OpenRC 自身的提示，所以单独一个文件。
+output_log="/var/log/sing-box-gateway/sing-box-console.log"
+error_log="/var/log/sing-box-gateway/sing-box-console.log"
 retry="TERM/10/KILL/5"
 
 depend() {
