@@ -242,6 +242,15 @@ install_files() {
   install -m 0755 "$PROJECT_DIR/openrc/sing-box" /etc/init.d/sing-box
   install -m 0755 "$PROJECT_DIR/openrc/sing-box-tproxy" /etc/init.d/sing-box-tproxy
   install -m 0755 "$PROJECT_DIR/openrc/singbox-rule-ui" /etc/init.d/singbox-rule-ui
+  # 网关并发连接数直接吃 fd，OpenRC 默认 soft nofile=4095 偏低（高并发 + mux 时会被顶满，
+  # 表现为 accept 失败、tproxy 假死）。写进 /etc/conf.d（OpenRC 会 source）而不是改
+  # init.d 脚本，重装/升级时可覆盖，用户自定义过 rc_ulimit 则不动。
+  if ! grep -qs '^rc_ulimit=' /etc/conf.d/sing-box 2>/dev/null; then
+    cat > /etc/conf.d/sing-box <<'RC_ULIMIT_CONF'
+# sing-box 是全屋内网网关，并发连接数直接吃 fd；Alpine/OpenRC 默认 soft nofile=4095。
+rc_ulimit="-n 65535"
+RC_ULIMIT_CONF
+  fi
 }
 
 install_logrotate_config() {
