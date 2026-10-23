@@ -1351,6 +1351,9 @@ def apply_cache_file_settings(config):
     # 「save FakeIP cache: key required」WARN，结果是重启后 fakeip 映射不复用、白开 store_fakeip。
     if not str(cache.get("cache_id") or "").strip():
         cache["cache_id"] = "gateway"
+    # cache_file 的 path 默认是相对路径，会相对服务 CWD（/）落到 /cache.db；
+    # 显式给绝对路径，状态文件统一放 /etc/sing-box/。
+    cache["path"] = "/etc/sing-box/cache.db"
 
 
 def apply_portable_listeners(config):
